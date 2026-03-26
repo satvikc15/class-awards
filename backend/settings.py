@@ -15,6 +15,13 @@ class Settings(BaseSettings):
     api_prefix: str = "/api"
     cors_origins: str = "*"
 
+    # SMTP settings for OTP emails
+    smtp_host: str = "smtp.gmail.com"
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_pass: str = ""
+    smtp_from: str = ""
+
     # Load `.env` from repo root, regardless of current working directory.
     _repo_root = Path(__file__).resolve().parents[1]
     model_config = SettingsConfigDict(

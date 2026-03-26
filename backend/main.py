@@ -1,18 +1,26 @@
 from __future__ import annotations
 
+import os
+import random
+import smtplib
+from datetime import datetime, timedelta, timezone
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from typing import Any, Dict
 
+import pyotp
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
-import os
+from fastapi.staticfiles import StaticFiles
 from motor.motor_asyncio import AsyncIOMotorClient
 
 from .models import (
     AdminPassRequest,
+    SendOtpRequest,
     SubmitNominationsRequest,
     SubmitVotesRequest,
+    VerifyOtpRequest,
 )
 from .settings import Settings
 
@@ -87,6 +95,119 @@ def require_admin(admin_pass: str) -> None:
         raise HTTPException(status_code=401, detail="Invalid admin password")
 
 
+# ─── OTP helpers ─────────────────────────────────────
+otp_collection = mongo_client[settings.mongodb_db]["otp_store"]
+
+
+def generate_otp() -> str:
+    """Generate a 6-digit numeric OTP."""
+    return "{:06d}".format(random.randint(0, 999999))
+
+
+def send_otp_email(to_email: str, otp_code: str) -> None:
+    """Send OTP email via SMTP."""
+    if not settings.smtp_user or not settings.smtp_pass:
+        raise HTTPException(status_code=500, detail="SMTP not configured")
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = f"Class Awards — Your verification code is {otp_code}"
+    msg["From"] = settings.smtp_from or settings.smtp_user
+    msg["To"] = to_email
+
+    html = f"""\
+    <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px;">
+      <h2 style="color: #f5c842; text-align: center;">🏆 Class Awards</h2>
+      <p style="text-align: center; color: #333; font-size: 16px;">Your verification code is:</p>
+      <div style="text-align: center; font-size: 36px; font-weight: 900; letter-spacing: 0.3em;
+                  color: #1a1000; background: linear-gradient(135deg, #f5c842, #e8a800);
+                  padding: 18px 32px; border-radius: 14px; margin: 16px auto; display: inline-block;">
+        {otp_code}
+      </div>
+      <p style="text-align: center; color: #888; font-size: 13px;">This code expires in 5 minutes.<br/>If you did not request this, ignore this email.</p>
+    </div>
+    """
+    msg.attach(MIMEText(html, "html"))
+
+    with smtplib.SMTP(settings.smtp_host, settings.smtp_port) as server:
+        server.starttls()
+        server.login(settings.smtp_user, settings.smtp_pass)
+        server.sendmail(msg["From"], to_email, msg.as_string())
+
+
+@app.post("/api/otp/send")
+async def send_otp(req: SendOtpRequest) -> dict[str, Any]:
+    roll = normalize_name(req.roll)
+    email = normalize_name(req.email)
+    if not roll or not email:
+        raise HTTPException(status_code=400, detail="Roll and email are required")
+
+    # Rate limit: don't allow resend within 60 seconds
+    existing = await otp_collection.find_one({"_id": roll})
+    if existing:
+        created = existing.get("created_at")
+        if created and (datetime.utcnow() - created).total_seconds() < 60:
+            raise HTTPException(status_code=429, detail="Please wait before requesting a new OTP")
+
+    otp_code = generate_otp()
+
+    # Store OTP in MongoDB with TTL
+    await otp_collection.update_one(
+        {"_id": roll},
+        {
+            "$set": {
+                "otp": otp_code,
+                "email": email,
+                "created_at": datetime.utcnow(),
+                "attempts": 0,
+            }
+        },
+        upsert=True,
+    )
+
+    # Send the email
+    try:
+        send_otp_email(email, otp_code)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to send email: {str(e)}")
+
+    return {"ok": True, "message": "OTP sent to your email"}
+
+
+@app.post("/api/otp/verify")
+async def verify_otp(req: VerifyOtpRequest) -> dict[str, Any]:
+    roll = normalize_name(req.roll)
+    otp = normalize_name(req.otp)
+    if not roll or not otp:
+        raise HTTPException(status_code=400, detail="Roll and OTP are required")
+
+    record = await otp_collection.find_one({"_id": roll})
+    if not record:
+        raise HTTPException(status_code=400, detail="No OTP found. Please request one first.")
+
+    # Check expiry (5 minutes)
+    created = record.get("created_at")
+    if created and (datetime.utcnow() - created).total_seconds() > 300:
+        await otp_collection.delete_one({"_id": roll})
+        raise HTTPException(status_code=410, detail="OTP has expired. Please request a new one.")
+
+    # Check attempts (max 5)
+    attempts = record.get("attempts", 0)
+    if attempts >= 5:
+        await otp_collection.delete_one({"_id": roll})
+        raise HTTPException(status_code=429, detail="Too many attempts. Please request a new OTP.")
+
+    # Increment attempts
+    await otp_collection.update_one({"_id": roll}, {"$inc": {"attempts": 1}})
+
+    if record.get("otp") != otp:
+        raise HTTPException(status_code=401, detail=f"Incorrect OTP. {4 - attempts} attempts remaining.")
+
+    # OTP verified — delete it so it can't be reused
+    await otp_collection.delete_one({"_id": roll})
+
+    return {"ok": True, "email": record.get("email", "")}
+
+
 @app.get("/api/health")
 async def health() -> dict[str, str]:
     return {"ok": "true"}
@@ -157,7 +278,7 @@ async def submit_nominations(req: SubmitNominationsRequest) -> dict[str, Any]:
     nominators_col = mongo_client[settings.mongodb_db]["nominators"]
     await nominators_col.update_one(
         {"_id": user_id_lower},
-        {"$set": {"user_id": user_id, "username": username}},
+        {"$set": {"user_id": user_id, "username": username, "email": req.email}},
         upsert=True,
     )
 
@@ -293,7 +414,7 @@ async def submit_votes(req: SubmitVotesRequest) -> dict[str, Any]:
     voters_col = mongo_client[settings.mongodb_db]["voters"]
     await voters_col.update_one(
         {"_id": user_id_lower},
-        {"$set": {"user_id": user_id, "username": username}},
+        {"$set": {"user_id": user_id, "username": username, "email": req.email}},
         upsert=True,
     )
 

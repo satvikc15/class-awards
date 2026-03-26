@@ -140,6 +140,7 @@ export default function NominationSite({ me, roster, rosterMap }) {
       await apiPost("/api/nominations/submit", {
         user_id: (me?.roll || name || "").trim(),
         username: rosterMap?.get(String((me?.roll || name || "").trim())) || "",
+        email: me?.email || "",
         picks,
       });
 

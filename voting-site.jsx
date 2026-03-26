@@ -215,6 +215,7 @@ export default function VotingSite({ me, rosterMap }) {
       await apiPost("/api/votes/submit", {
         user_id: studentName.trim(),
         username: rosterMap?.get(String(studentName.trim())) || "",
+        email: me?.email || "",
         votes: finalVotes,
       });
 

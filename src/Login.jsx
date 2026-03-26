@@ -6,9 +6,17 @@ const ADMIN_ROLL = "1985";
 
 export default function Login({ onLogin }) {
   const [xx, setXx] = useState("");
+  const [email, setEmail] = useState("");
   const [adminStep, setAdminStep] = useState(false);
   const [adminPass, setAdminPass] = useState("");
   const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  // OTP flow states
+  const [otpStep, setOtpStep] = useState(false); // true = OTP input visible
+  const [otp, setOtp] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
+  const [countdown, setCountdown] = useState(0);
 
   const roll = useMemo(() => `${PREFIX}${xx}`, [xx]);
 
@@ -18,11 +26,27 @@ export default function Login({ onLogin }) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
-    if (!res.ok) throw new Error(await res.text());
+    if (!res.ok) {
+      const text = await res.text();
+      let msg = text;
+      try { msg = JSON.parse(text).detail || text; } catch {}
+      throw new Error(msg);
+    }
     return res.json();
   };
 
-  const handleLogin = async () => {
+  // Start countdown timer for resend
+  const startCountdown = () => {
+    setCountdown(60);
+    const interval = setInterval(() => {
+      setCountdown((c) => {
+        if (c <= 1) { clearInterval(interval); return 0; }
+        return c - 1;
+      });
+    }, 1000);
+  };
+
+  const handleSendOtp = async () => {
     const digits = String(xx).replace(/\D/g, "");
     if (digits === ADMIN_ROLL) {
       setAdminStep(true);
@@ -34,18 +58,73 @@ export default function Login({ onLogin }) {
       setErr("Roll must look like 1005227290XX (XX = two digits).");
       return;
     }
+    if (!email.trim() || !email.includes("@")) {
+      setErr("Please enter a valid email address.");
+      return;
+    }
+
     setErr("");
-    onLogin({ roll: r, admin: false });
+    setBusy(true);
+    try {
+      await apiPost("/api/otp/send", { roll: r, email: email.trim() });
+      setOtpStep(true);
+      setOtpSent(true);
+      startCountdown();
+    } catch (e) {
+      setErr(e.message || "Failed to send OTP. Please try again.");
+    }
+    setBusy(false);
+  };
+
+  const handleVerifyOtp = async () => {
+    if (!otp.trim()) {
+      setErr("Please enter the OTP.");
+      return;
+    }
+    setErr("");
+    setBusy(true);
+    try {
+      await apiPost("/api/otp/verify", { roll: roll.trim(), otp: otp.trim() });
+      onLogin({ roll: roll.trim(), admin: false, email: email.trim() });
+    } catch (e) {
+      setErr(e.message || "Verification failed.");
+    }
+    setBusy(false);
+  };
+
+  const handleResendOtp = async () => {
+    if (countdown > 0) return;
+    setErr("");
+    setBusy(true);
+    try {
+      await apiPost("/api/otp/send", { roll: roll.trim(), email: email.trim() });
+      startCountdown();
+      setOtp("");
+      setErr("");
+    } catch (e) {
+      setErr(e.message || "Failed to resend OTP.");
+    }
+    setBusy(false);
   };
 
   const handleAdminAuth = async () => {
     setErr("");
+    setBusy(true);
     try {
       await apiPost("/api/admin/login", { adminPass });
       onLogin({ roll: ADMIN_ROLL, admin: true, adminPass });
     } catch {
       setErr("Wrong password.");
     }
+    setBusy(false);
+  };
+
+  const resetAll = () => {
+    setOtpStep(false);
+    setOtp("");
+    setOtpSent(false);
+    setCountdown(0);
+    setErr("");
   };
 
   return (
@@ -68,53 +147,142 @@ export default function Login({ onLogin }) {
         <div style={{ textAlign: "center" }}>
           <div style={{ fontSize: 68 }}>🎓</div>
           <h1 className="title">Class Awards</h1>
-          <p className="sub">Log in with your roll number to nominate and vote</p>
+          <p className="sub">
+            {otpStep
+              ? "Enter the verification code sent to your email"
+              : "Log in with your roll number to nominate and vote"}
+          </p>
         </div>
 
         <div style={{ marginTop: 28 }}>
-          <div className="roll-wrap">
-            <span className="roll-prefix">{PREFIX}</span>
-            <input
-              className="roll-xx"
-              inputMode="numeric"
-              placeholder="XX"
-              value={xx}
-              onChange={(e) => {
-                const v = e.target.value.replace(/\D/g, "").slice(0, 4);
-                setXx(v);
-                setErr("");
-                setAdminStep(false);
-                setAdminPass("");
-              }}
-              onKeyDown={(e) => e.key === "Enter" && handleLogin()}
-            />
-          </div>
-          {err && <p className="err">{err}</p>}
+          {!otpStep ? (
+            <>
+              {/* Roll number input */}
+              <div className="roll-wrap">
+                <span className="roll-prefix">{PREFIX}</span>
+                <input
+                  className="roll-xx"
+                  inputMode="numeric"
+                  placeholder="XX"
+                  value={xx}
+                  onChange={(e) => {
+                    const v = e.target.value.replace(/\D/g, "").slice(0, 4);
+                    setXx(v);
+                    setErr("");
+                    setAdminStep(false);
+                    setAdminPass("");
+                  }}
+                  onKeyDown={(e) => e.key === "Enter" && !adminStep && handleSendOtp()}
+                />
+              </div>
 
-          {!adminStep ? (
-            <button className="btn-gold" onClick={handleLogin} style={{ width: "100%", marginTop: 12 }}>
-              Enter →
-            </button>
-          ) : (
-            <div style={{ marginTop: 12 }}>
+              {/* Email input */}
               <input
                 className="field"
-                type="password"
-                placeholder="Admin password"
-                value={adminPass}
-                onChange={(e) => setAdminPass(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleAdminAuth()}
-                style={{ textAlign: "center" }}
-                autoFocus
+                type="email"
+                placeholder="Your email address"
+                value={email}
+                onChange={(e) => { setEmail(e.target.value); setErr(""); }}
+                onKeyDown={(e) => e.key === "Enter" && !adminStep && handleSendOtp()}
+                style={{ textAlign: "center", marginTop: 12 }}
               />
-              <button className="btn-gold" onClick={handleAdminAuth} style={{ width: "100%", marginTop: 10 }}>
-                Admin Login →
+
+              {err && <p className="err">{err}</p>}
+
+              {!adminStep ? (
+                <button
+                  className="btn-gold"
+                  onClick={handleSendOtp}
+                  disabled={busy}
+                  style={{ width: "100%", marginTop: 12 }}
+                >
+                  {busy ? "Sending OTP…" : "Send OTP →"}
+                </button>
+              ) : (
+                <div style={{ marginTop: 12 }}>
+                  <input
+                    className="field"
+                    type="password"
+                    placeholder="Admin password"
+                    value={adminPass}
+                    onChange={(e) => setAdminPass(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleAdminAuth()}
+                    style={{ textAlign: "center" }}
+                    autoFocus
+                  />
+                  <button
+                    className="btn-gold"
+                    onClick={handleAdminAuth}
+                    disabled={busy}
+                    style={{ width: "100%", marginTop: 10 }}
+                  >
+                    {busy ? "Checking…" : "Admin Login →"}
+                  </button>
+                </div>
+              )}
+              <p className="hint" style={{ marginTop: 10 }}>
+                Format: <strong style={{ color: "#f5c842" }}>1005227290XX</strong>
+              </p>
+            </>
+          ) : (
+            <>
+              {/* OTP verification step */}
+              <div style={{ textAlign: "center", marginBottom: 16 }}>
+                <p style={{ color: "rgba(255,255,255,.5)", fontSize: 13 }}>
+                  OTP sent to <strong style={{ color: "#f5c842" }}>{email}</strong>
+                </p>
+                <p style={{ color: "rgba(255,255,255,.35)", fontSize: 12, marginTop: 4 }}>
+                  Roll: <strong>{roll}</strong>
+                </p>
+              </div>
+
+              <div className="otp-wrap">
+                <input
+                  className="otp-input"
+                  inputMode="numeric"
+                  maxLength={6}
+                  placeholder="000000"
+                  value={otp}
+                  onChange={(e) => {
+                    const v = e.target.value.replace(/\D/g, "").slice(0, 6);
+                    setOtp(v);
+                    setErr("");
+                  }}
+                  onKeyDown={(e) => e.key === "Enter" && handleVerifyOtp()}
+                  autoFocus
+                />
+              </div>
+
+              {err && <p className="err">{err}</p>}
+
+              <button
+                className="btn-gold"
+                onClick={handleVerifyOtp}
+                disabled={busy || otp.length < 6}
+                style={{ width: "100%", marginTop: 12 }}
+              >
+                {busy ? "Verifying…" : "Verify & Login →"}
               </button>
-            </div>
+
+              <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
+                <button
+                  className="btn-ghost"
+                  onClick={resetAll}
+                  style={{ flex: 1 }}
+                >
+                  ← Back
+                </button>
+                <button
+                  className="btn-ghost"
+                  onClick={handleResendOtp}
+                  disabled={countdown > 0 || busy}
+                  style={{ flex: 1 }}
+                >
+                  {countdown > 0 ? `Resend in ${countdown}s` : "Resend OTP"}
+                </button>
+              </div>
+            </>
           )}
-          <p className="hint" style={{ marginTop: 10 }}>
-            Format: <strong style={{ color: "#f5c842" }}>1005227290XX</strong>
-          </p>
         </div>
       </div>
     </div>
@@ -166,6 +334,7 @@ const css = `
 }
 .btn-gold:hover  { transform: translateY(-1px); }
 .btn-gold:active { transform: translateY(1px); }
+.btn-gold:disabled { opacity: .5; cursor: default; transform: none; }
 .btn-ghost {
   background: rgba(255,255,255,.07);
   color: rgba(255,255,255,.7);
@@ -215,7 +384,27 @@ const css = `
   text-transform: uppercase;
 }
 .roll-xx::placeholder { color: rgba(255,255,255,.25); letter-spacing: .18em; }
+.otp-wrap {
+  display: flex;
+  justify-content: center;
+}
+.otp-input {
+  width: 220px;
+  padding: 18px 24px;
+  border: 2px solid rgba(245,200,66,.5);
+  border-radius: 16px;
+  background: rgba(255,255,255,.08);
+  color: #f5c842;
+  font-size: 32px;
+  font-weight: 900;
+  letter-spacing: 0.5em;
+  text-align: center;
+  font-family: 'DM Sans', monospace;
+  outline: none;
+  transition: border-color .2s;
+}
+.otp-input::placeholder { color: rgba(245,200,66,.2); letter-spacing: 0.5em; }
+.otp-input:focus { border-color: #f5c842; }
 @keyframes fadeInUp { from { opacity:0; transform: translateY(18px); } to { opacity:1; transform: translateY(0); } }
 .fade-in { animation: fadeInUp .35s ease both; }
 `;
-
