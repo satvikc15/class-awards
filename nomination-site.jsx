@@ -1,5 +1,10 @@
 import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import RosterSearchField from "./src/RosterSearchField.jsx";
+
+const CLASS_PHOTOS = [
+  "/cp1.jpeg", "/cp2.jpeg", "/cp3.jpeg", "/cp4.jpeg", "/cp5.jpeg", "/cp6.jpeg", "/cp7.jpeg"
+];
 
 const CATEGORIES = [
   { id: "1", emoji: "💍", label: "Most likely to be late to their own wedding", gender: null },
@@ -72,6 +77,7 @@ export default function NominationSite({ me, roster, rosterMap }) {
   const [name, setName] = useState(me?.roll || "");
   const [nameErr, setNameErr] = useState("");
   const [idx, setIdx] = useState(0);
+  const [direction, setDirection] = useState(0);
   const [picks, setPicks] = useState({});
   const [inp, setInp] = useState("");
   const [busy, setBusy] = useState(false);
@@ -93,6 +99,7 @@ export default function NominationSite({ me, roster, rosterMap }) {
   /* Navigate forward (+1) or back (-1) */
   const navigate = (dir) => {
     const nextIdx = idx + dir;
+    setDirection(dir);
     if (nextIdx >= 0 && nextIdx < CATEGORIES.length) {
       setInp("");
       setIdx(nextIdx);
@@ -355,28 +362,122 @@ export default function NominationSite({ me, roster, rosterMap }) {
 }
 
 /* ─── SHELL ─── */
-function Shell({ children }) {
+function Shell({ children, hideLeftPanel }) {
   return (
-    <div style={{
-      minHeight: "100vh",
-      background:
-        "radial-gradient(900px circle at 15% 10%, rgba(245,200,66,.12), transparent 40%)," +
-        "radial-gradient(700px circle at 85% 20%, rgba(80,200,255,.10), transparent 45%)," +
-        "linear-gradient(135deg, #0d0d1a 0%, #1a1040 50%, #0a1628 100%)",
-      display: "flex", flexDirection: "column",
-      alignItems: "center", justifyContent: "center", padding: 20,
-      fontFamily: "'DM Sans', sans-serif",
-    }}>
-      {children}
+    <div className="app-container">
+      <style>{css}</style>
+      <div className={`left-panel ${hideLeftPanel ? "hidden" : ""}`}>
+        <div className="masonry-wrapper">
+          <div className="masonry-col col-left">
+            {[...CLASS_PHOTOS.slice(0, 4), ...CLASS_PHOTOS.slice(0, 4)].map((p, i) => (
+              <div key={i} className="photo-card" style={{ backgroundImage: `url(${p})` }} />
+            ))}
+          </div>
+          <div className="masonry-col col-right">
+            {[...CLASS_PHOTOS.slice(3, 7), ...CLASS_PHOTOS.slice(3, 7), "/cp1.jpeg"].map((p, i) => (
+              <div key={i} className="photo-card" style={{ backgroundImage: `url(${p})` }} />
+            ))}
+          </div>
+        </div>
+        <div className="overlay-gradient" />
+      </div>
+      
+      <div className={`right-panel ${hideLeftPanel ? "full-width" : ""}`}>
+        <div className="ambient-glow glow-1" />
+        <div className="ambient-glow glow-2" />
+        {children}
+      </div>
     </div>
   );
 }
 
 /* ─── CSS ─── */
 const css = `
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600;700&display=swap');
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #06060c; overflow: hidden; margin: 0; }
+
+.app-container {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  background: #06060c;
+  color: #fff;
+  font-family: 'DM Sans', sans-serif;
+  position: absolute;
+  top: 0; left: 0;
+}
+
+.left-panel {
+  flex: 1.2;
+  position: relative;
+  overflow: hidden;
+  background: #0a0a12;
+  border-right: 1px solid rgba(255,255,255,0.05);
+  display: block;
+}
+.left-panel.hidden { flex: 0; border: none; }
+
+.masonry-wrapper {
+  display: flex;
+  gap: 20px;
+  padding: 20px;
+  height: 150vh;
+  transform: rotate(-4deg) scale(1.1);
+  margin-top: -10vh;
+}
+
+.masonry-col { flex: 1; display: flex; flex-direction: column; gap: 20px; }
+
+.col-left { animation: scrollUp 40s linear infinite; }
+.col-right { animation: scrollDown 40s linear infinite; }
+
+@keyframes scrollUp { 0% { transform: translateY(0); } 100% { transform: translateY(-30%); } }
+@keyframes scrollDown { 0% { transform: translateY(-30%); } 100% { transform: translateY(0); } }
+
+.photo-card {
+  width: 100%;
+  padding-bottom: 130%;
+  background-size: cover;
+  background-position: center;
+  border-radius: 20px;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+  border: 4px solid rgba(255,255,255,0.05);
+}
+
+.overlay-gradient {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent 60%, #06060c 100%),
+              radial-gradient(circle at center, transparent 30%, rgba(6,6,12,0.85) 100%);
+  pointer-events: none;
+}
+
+.right-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  z-index: 10;
+}
+.right-panel.full-width { flex: 1; }
+
+.ambient-glow {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(100px);
+  opacity: 0.15;
+  pointer-events: none;
+  z-index: -1;
+}
+.glow-1 { width: 500px; height: 500px; background: #f5c842; top: -100px; right: -100px; }
+.glow-2 { width: 600px; height: 600px; background: #50c8ff; bottom: -150px; left: -150px; }
+
 
 .card {
   background: rgba(255,255,255,0.06);
