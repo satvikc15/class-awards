@@ -548,11 +548,12 @@ body { background: var(--bg); overflow: hidden; margin: 0; font-family: 'Space G
 }
 
 .background-grid {
-  position: absolute; inset: 0;
+  position: absolute; inset: -20% 0;
   display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 18px; padding: 48px;
   transform: rotate(-0.8deg) scale(1.03);
   z-index: 0; pointer-events: none;
+  animation: gridScroll 60s linear infinite;
 }
 
 .photo-card {
@@ -561,8 +562,10 @@ body { background: var(--bg); overflow: hidden; margin: 0; font-family: 'Space G
   border-radius: 26px; box-shadow: 0 25px 60px rgba(0,0,0,0.65);
   border: 1px solid rgba(255,255,255,0.06);
   opacity: 0.92; filter: contrast(1.05) saturate(0.8);
-  animation: drift 36s ease-in-out infinite;
+  animation: drift 20s ease-in-out infinite;
 }
+.photo-card:nth-child(2n) { animation-delay: -5s; animation-duration: 25s; }
+.photo-card:nth-child(3n) { animation-delay: -10s; animation-duration: 30s; }
 
 .overlay-gradient {
   position: absolute; inset: 0;
@@ -673,6 +676,7 @@ body { background: var(--bg); overflow: hidden; margin: 0; font-family: 'Space G
 
 @keyframes sparklePop { 0% { transform: scale(.6); opacity: 0; } 35% { opacity: 1; } 100% { transform: scale(1.15); opacity: 0; } }
 @keyframes drift { 0% { transform: translateY(0) scale(1); } 50% { transform: translateY(-16px) scale(1.02); } 100% { transform: translateY(0) scale(1); } }
+@keyframes gridScroll { 0% { transform: rotate(-0.8deg) scale(1.03) translateY(0); } 100% { transform: rotate(-0.8deg) scale(1.03) translateY(-10%); } }
 @keyframes fadeInUp { from { opacity:0; transform:translateY(18px); } to { opacity:1; transform:translateY(0); } }
 .fade-in { animation: fadeInUp .35s ease both; }
 `;

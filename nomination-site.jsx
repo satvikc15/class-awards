@@ -231,16 +231,17 @@ export default function NominationSite({ me, roster, rosterMap }) {
     return (
       <Shell>
         <style>{css}</style>
+        <motion.div {...CARD_MOTION} style={{ maxWidth: 480, width: "100%" }}>
         {/* Progress */}
-        <div style={{ width: "100%", maxWidth: 480, marginBottom: 16 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "rgba(255,255,255,.45)", marginBottom: 6 }}>
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "rgba(255,255,255,.5)", marginBottom: 6 }}>
             <span>{idx + 1} / {CATEGORIES.length}</span>
-            <span>{pct}% done</span>
+            <span>{pct}%</span>
           </div>
           <div className="bar-track"><div className="bar-fill" style={{ width: `${pct}%` }} /></div>
         </div>
 
-        <motion.div className="card" {...CARD_MOTION} style={{ maxWidth: 480, width: "100%", textAlign: "center" }}>
+        <div className="card" style={{ width: "100%", textAlign: "center" }}>
           <div style={{ fontSize: 54, marginBottom: 8 }}>{cat.emoji}</div>
           <p className="badge">Award #{cat.id}</p>
           <h2 className="q-title">{cat.label}</h2>
@@ -290,11 +291,11 @@ export default function NominationSite({ me, roster, rosterMap }) {
           <div style={{ display: "flex", gap: 10 }}>
             {idx > 0 && (
               <button className="btn-ghost" onClick={() => navigate(-1)} style={{ flex: 1 }}>
-                \u2190 Back
+                ← Back
               </button>
             )}
             <button className="btn-gold" onClick={() => navigate(1)} style={{ flex: 2 }}>
-              {idx === CATEGORIES.length - 1 ? "Review \u2192" : hasPick ? "Next \u2192" : "Skip \u2192"}
+              {idx === CATEGORIES.length - 1 ? "Review →" : hasPick ? "Next →" : "Skip →"}
             </button>
           </div>
           {!isMulti && picks[cat.id] && (
@@ -302,6 +303,7 @@ export default function NominationSite({ me, roster, rosterMap }) {
               Selected: <em>{selectedName ? `${selectedName} (${picks[cat.id]})` : picks[cat.id]}</em>
             </p>
           )}
+        </div>
         </motion.div>
       </Shell>
     );
@@ -418,7 +420,7 @@ body { background: var(--bg); overflow: hidden; margin: 0; font-family: 'Space G
 
 .background-grid {
   position: absolute;
-  inset: 0;
+  inset: -20% 0;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 18px;
@@ -426,6 +428,7 @@ body { background: var(--bg); overflow: hidden; margin: 0; font-family: 'Space G
   transform: rotate(-0.8deg) scale(1.03);
   z-index: 0;
   pointer-events: none;
+  animation: gridScroll 60s linear infinite;
 }
 
 .photo-card {
@@ -438,8 +441,10 @@ body { background: var(--bg); overflow: hidden; margin: 0; font-family: 'Space G
   border: 1px solid rgba(255,255,255,0.06);
   opacity: 0.92;
   filter: contrast(1.05) saturate(0.8);
-  animation: drift 36s ease-in-out infinite;
+  animation: drift 20s ease-in-out infinite;
 }
+.photo-card:nth-child(2n) { animation-delay: -5s; animation-duration: 25s; }
+.photo-card:nth-child(3n) { animation-delay: -10s; animation-duration: 30s; }
 
 .overlay-gradient {
   position: absolute;
@@ -655,6 +660,11 @@ body { background: var(--bg); overflow: hidden; margin: 0; font-family: 'Space G
   0% { transform: translateY(0) scale(1); }
   50% { transform: translateY(-16px) scale(1.02); }
   100% { transform: translateY(0) scale(1); }
+}
+
+@keyframes gridScroll {
+  0% { transform: rotate(-0.8deg) scale(1.03) translateY(0); }
+  100% { transform: rotate(-0.8deg) scale(1.03) translateY(-10%); }
 }
 
 @keyframes fadeInUp { from { opacity:0; transform: translateY(18px); } to { opacity:1; transform: translateY(0); } }
