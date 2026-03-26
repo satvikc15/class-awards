@@ -1,5 +1,9 @@
 import { useState, useEffect } from "react";
 
+const CLASS_PHOTOS = [
+  "/cp1.jpeg", "/cp2.jpeg", "/cp3.jpeg", "/cp4.jpeg", "/cp5.jpeg", "/cp6.jpeg", "/cp7.jpeg"
+];
+
 const CATEGORIES = [
   { id: "1",  emoji: "💍", label: "Most likely to be late to their own wedding", gender: null },
   { id: "2",  emoji: "📢", label: "Human Megaphone", gender: null },
@@ -502,18 +506,22 @@ export default function VotingSite({ me, rosterMap }) {
 
 /* ─── SHELL ─── */
 function Shell({ children }) {
+  const backgroundTiles = Array.from({ length: 12 }, (_, i) => CLASS_PHOTOS[i % CLASS_PHOTOS.length]);
+
   return (
-    <div style={{
-      minHeight: "100vh",
-      background:
-        "radial-gradient(900px circle at 20% 12%, rgba(245,200,66,.12), transparent 40%)," +
-        "radial-gradient(700px circle at 80% 25%, rgba(80,255,120,.10), transparent 45%)," +
-        "linear-gradient(135deg, #0a0f1e 0%, #161040 50%, #0d1f2d 100%)",
-      display: "flex", flexDirection: "column",
-      alignItems: "center", justifyContent: "center", padding: 20,
-      fontFamily: "'DM Sans', sans-serif",
-    }}>
-      {children}
+    <div className="app-container">
+      <style>{css}</style>
+      <div className="background-grid">
+        {backgroundTiles.map((photo, index) => (
+          <div key={index} className="photo-card" style={{ backgroundImage: `url(${photo})` }} />
+        ))}
+      </div>
+      <div className="overlay-gradient" />
+      <div className="content-wrapper">
+        <div className="ambient-glow glow-1" />
+        <div className="ambient-glow glow-2" />
+        {children}
+      </div>
     </div>
   );
 }
@@ -535,82 +543,5 @@ const css = `
 .badge { display:inline-block; background:rgba(245,200,66,.15); border:1px solid rgba(245,200,66,.35); color:#f5c842; font-size:11px; letter-spacing:.12em; text-transform:uppercase; padding:3px 12px; border-radius:99px; margin-bottom:10px; }
 .q-title { font-family:'Playfair Display',serif; font-size:1.4rem; font-weight:700; color:#fff; line-height:1.3; margin-top:4px; }
 
-.field {
-  width:100%; background:rgba(255,255,255,.08); border:1.5px solid rgba(255,255,255,.18);
-  border-radius:14px; padding:14px 18px; color:#fff; font-size:16px;
-  font-family:'DM Sans',sans-serif; outline:none; transition:border-color .2s; display:block;
-}
-.field::placeholder { color:rgba(255,255,255,.3); }
-.field:focus { border-color:rgba(245,200,66,.7); }
-
-.btn-gold {
-  background:linear-gradient(135deg,#f5c842,#e8a800); color:#1a1000; font-weight:700;
-  font-family:'DM Sans',sans-serif; font-size:15px; border:none; border-radius:14px;
-  padding:14px 20px; cursor:pointer; transition:transform .15s,opacity .15s;
-}
-.btn-gold:hover { transform:translateY(-1px); }
-.btn-gold:disabled { opacity:.5; cursor:default; transform:none; }
-.btn-ghost {
-  background:rgba(255,255,255,.07); color:rgba(255,255,255,.6); font-weight:500;
-  font-family:'DM Sans',sans-serif; font-size:14px; border:1px solid rgba(255,255,255,.12);
-  border-radius:14px; padding:13px 18px; cursor:pointer; transition:background .15s;
-}
-.btn-ghost:hover { background:rgba(255,255,255,.12); }
-
-.nominee-btn {
-  display:flex; align-items:center; gap:14px; background:rgba(255,255,255,.07);
-  border:1.5px solid rgba(255,255,255,.12); border-radius:16px; padding:16px 18px;
-  color:#fff; font-family:'DM Sans',sans-serif; font-size:15px; font-weight:500;
-  cursor:pointer; transition:all .2s; text-align:left; width:100%;
-}
-.nominee-btn:hover { background:rgba(255,255,255,.12); border-color:rgba(245,200,66,.4); }
-.nominee-selected { background:rgba(245,200,66,.15) !important; border-color:#f5c842 !important; color:#f5c842; }
-
-.bar-track { height:5px; background:rgba(255,255,255,.12); border-radius:99px; overflow:hidden; }
-.bar-fill  { height:100%; background:linear-gradient(90deg,#f5c842,#ff9d00); border-radius:99px; transition:width .4s ease; }
-
-.scroll-list { display:flex; flex-direction:column; gap:8px; overflow-y:auto; }
-.scroll-list::-webkit-scrollbar { width:4px; }
-.scroll-list::-webkit-scrollbar-thumb { background:rgba(255,255,255,.15); border-radius:2px; }
-.row-skip { color:rgba(255,255,255,.25); font-size:12px; font-style:italic; }
-
-.admin-cat-row {
-  background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.08);
-  border-radius:16px; padding:14px 16px;
-}
-.nom-chip {
-  display:inline-block; background:rgba(255,255,255,.1); border-radius:99px;
-  padding:4px 12px; font-size:13px; color:rgba(255,255,255,.8);
-}
-.chip-lead { background:rgba(245,200,66,.2); color:#f5c842; font-weight:600; }
-
-.phase-badge { font-size:12px; font-weight:600; padding:4px 12px; border-radius:99px; }
-.phase-nominating { background:rgba(80,200,255,.15); color:#50c8ff; }
-.phase-voting     { background:rgba(80,255,120,.15); color:#50ff78; }
-.phase-results    { background:rgba(245,200,66,.15); color:#f5c842; }
-
-.sparkles {
-  position: relative;
-  width: 10px;
-  height: 10px;
-  margin: 22px auto 0;
-  border-radius: 50%;
-  background: #f5c842;
-  box-shadow:
-    0 -22px 0 0 rgba(245,200,66,.25),
-    18px -10px 0 0 rgba(80,255,120,.18),
-    22px 6px 0 0 rgba(255,120,190,.18),
-    -16px 10px 0 0 rgba(110,255,190,.18),
-    -22px -8px 0 0 rgba(245,200,66,.18);
-  animation: sparklePop .9s ease-out both;
-}
-
-@keyframes sparklePop {
-  0% { transform: scale(.6); opacity: .0; }
-  35% { opacity: 1; }
-  100% { transform: scale(1.15); opacity: 0; }
-}
-
-@keyframes fadeInUp { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
-.fade-in { animation:fadeInUp .35s ease both; }
+  /* (the CSS here should be replaced with the new matte shell CSS) */
 `;

@@ -72,6 +72,12 @@ const apiPost = async (path, body) => {
 const toTitle = (str) =>
   str.replace(/\b\w/g, (c) => c.toUpperCase());
 
+const CARD_MOTION = {
+  initial: { opacity: 0, y: 14, scale: 0.98 },
+  animate: { opacity: 1, y: 0, scale: 1 },
+  transition: { duration: 0.35, ease: "easeOut" },
+};
+
 export default function NominationSite({ me, roster, rosterMap }) {
   const [screen, setScreen] = useState("landing");
   const [name, setName] = useState(me?.roll || "");
@@ -146,25 +152,25 @@ export default function NominationSite({ me, roster, rosterMap }) {
 
   /* ─── SCREENS ─────────────────────────────────────── */
 
-  if (screen === "landing") return (
-    <Shell>
-      <style>{css}</style>
-      <div className="card fade-in" style={{ maxWidth: 440, width: "100%" }}>
-        <div className="trophy">🏆</div>
-        <h1 className="title">Class Awards</h1>
-        <p className="sub">
-          Nominate your classmates · 43 categories<br />
-          <span style={{ color: "rgba(255,255,255,.35)" }}>Logged in as</span>{" "}
-          <span style={{ color: "#f5c842", fontWeight: 800 }}>{me?.roll}</span>
-        </p>
-        {nameErr && <p className="err">{nameErr}</p>}
-        <button className="btn-gold" onClick={handleStart} disabled={busy} style={{ marginTop: 12, width: "100%" }}>
-          {busy ? "Checking…" : "Start Nominating →"}
-        </button>
-        <p className="hint">One submission per person · You can skip any question</p>
-      </div>
-    </Shell>
-  );
+    if (screen === "landing") return (
+      <Shell>
+        <style>{css}</style>
+        <motion.div className="card" {...CARD_MOTION} style={{ maxWidth: 440, width: "100%" }}>
+          <div className="hero-symbol" aria-hidden="true" />
+          <h1 className="title">Class Awards</h1>
+          <p className="sub">
+            Nominate your classmates · 43 categories<br />
+            <span style={{ color: "rgba(255,255,255,.45)" }}>Logged in as</span>{" "}
+            <span style={{ color: "rgba(255,255,255,.85)", fontWeight: 600 }}>{me?.roll}</span>
+          </p>
+          {nameErr && <p className="err">{nameErr}</p>}
+          <button className="btn-gold" onClick={handleStart} disabled={busy} style={{ marginTop: 12, width: "100%" }}>
+            {busy ? "Checking…" : "Start Nominating"}
+          </button>
+          <p className="hint">One submission per person · You can skip any question</p>
+        </motion.div>
+      </Shell>
+    );
 
   if (screen === "nominate") {
     const cat = CATEGORIES[idx];
@@ -200,12 +206,12 @@ export default function NominationSite({ me, roster, rosterMap }) {
 
     // Labels for multi-pick slots
     const slotLabels = isMixed
-      ? ["\ud83d\udc66 Pick a Boy", "\ud83d\udc67 Pick a Girl"]
+      ? ["Pick a boy", "Pick a girl"]
       : slots === 2
-        ? ["\ud83e\uddd1 Person #1", "\ud83e\uddd1 Person #2"]
+        ? ["Person #1", "Person #2"]
         : slots === 3
-          ? ["\ud83e\uddd1 Person #1", "\ud83e\uddd1 Person #2", "\ud83e\uddd1 Person #3"]
-          : Array.from({ length: slots }, (_, i) => `\ud83e\uddd1 Person #${i + 1}`);
+          ? ["Person #1", "Person #2", "Person #3"]
+          : Array.from({ length: slots }, (_, i) => `Person #${i + 1}`);
 
     // For each slot, determine the filtered roster (exclude already-picked in other slots)
     const getRosterForSlot = (slotIdx) => {
@@ -234,7 +240,7 @@ export default function NominationSite({ me, roster, rosterMap }) {
           <div className="bar-track"><div className="bar-fill" style={{ width: `${pct}%` }} /></div>
         </div>
 
-        <div className="card fade-in" style={{ maxWidth: 480, width: "100%", textAlign: "center" }}>
+        <motion.div className="card" {...CARD_MOTION} style={{ maxWidth: 480, width: "100%", textAlign: "center" }}>
           <div style={{ fontSize: 54, marginBottom: 8 }}>{cat.emoji}</div>
           <p className="badge">Award #{cat.id}</p>
           <h2 className="q-title">{cat.label}</h2>
@@ -296,7 +302,7 @@ export default function NominationSite({ me, roster, rosterMap }) {
               Selected: <em>{selectedName ? `${selectedName} (${picks[cat.id]})` : picks[cat.id]}</em>
             </p>
           )}
-        </div>
+        </motion.div>
       </Shell>
     );
   }
@@ -306,9 +312,9 @@ export default function NominationSite({ me, roster, rosterMap }) {
     return (
       <Shell>
         <style>{css}</style>
-        <div style={{ maxWidth: 460, width: "100%" }} className="fade-in">
+        <motion.div style={{ maxWidth: 460, width: "100%" }} className="fade-in" {...CARD_MOTION}>
           <div style={{ textAlign: "center", marginBottom: 24 }}>
-            <div style={{ fontSize: 52 }}>📋</div>
+          <div className="mini-symbol" aria-hidden="true" />
             <h2 className="title" style={{ marginTop: 8 }}>Review Your Picks</h2>
             <p className="sub">{count} / {CATEGORIES.length} nominated</p>
           </div>
@@ -340,7 +346,7 @@ export default function NominationSite({ me, roster, rosterMap }) {
           >
             ← Edit nominations
           </button>
-        </div>
+        </motion.div>
       </Shell>
     );
   }
@@ -348,41 +354,33 @@ export default function NominationSite({ me, roster, rosterMap }) {
   return (
     <Shell>
       <style>{css}</style>
-      <div className="card fade-in" style={{ maxWidth: 420, textAlign: "center" }}>
-        <div style={{ fontSize: 72 }}>🎊</div>
+      <motion.div className="card" {...CARD_MOTION} style={{ maxWidth: 420, textAlign: "center" }}>
+        <div className="mini-symbol" aria-hidden="true" />
         <h2 className="title" style={{ marginTop: 12 }}>Nominations Submitted!</h2>
         <p className="sub" style={{ marginTop: 8 }}>
           Thank you, <span style={{ color: "#f5c842", fontWeight: 600 }}>{me?.roll}</span>!<br />
           {enc || "Your nominations are in. Stay tuned for the voting round!"}
         </p>
         <div className="sparkles" aria-hidden="true" />
-      </div>
+      </motion.div>
     </Shell>
   );
 }
 
 /* ─── SHELL ─── */
-function Shell({ children, hideLeftPanel }) {
+function Shell({ children }) {
+  const backgroundTiles = Array.from({ length: 12 }, (_, i) => CLASS_PHOTOS[i % CLASS_PHOTOS.length]);
+
   return (
     <div className="app-container">
       <style>{css}</style>
-      <div className={`left-panel ${hideLeftPanel ? "hidden" : ""}`}>
-        <div className="masonry-wrapper">
-          <div className="masonry-col col-left">
-            {[...CLASS_PHOTOS.slice(0, 4), ...CLASS_PHOTOS.slice(0, 4)].map((p, i) => (
-              <div key={i} className="photo-card" style={{ backgroundImage: `url(${p})` }} />
-            ))}
-          </div>
-          <div className="masonry-col col-right">
-            {[...CLASS_PHOTOS.slice(3, 7), ...CLASS_PHOTOS.slice(3, 7), "/cp1.jpeg"].map((p, i) => (
-              <div key={i} className="photo-card" style={{ backgroundImage: `url(${p})` }} />
-            ))}
-          </div>
-        </div>
-        <div className="overlay-gradient" />
+      <div className="background-grid">
+        {backgroundTiles.map((photo, index) => (
+          <div key={index} className="photo-card" style={{ backgroundImage: `url(${photo})` }} />
+        ))}
       </div>
-      
-      <div className={`right-panel ${hideLeftPanel ? "full-width" : ""}`}>
+      <div className="overlay-gradient" />
+      <div className="content-wrapper">
         <div className="ambient-glow glow-1" />
         <div className="ambient-glow glow-2" />
         {children}
@@ -393,136 +391,158 @@ function Shell({ children, hideLeftPanel }) {
 
 /* ─── CSS ─── */
 const css = `
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
+:root {
+  --bg: #030712;
+  --panel: #0b0f18;
+  --card: rgba(9, 12, 18, 0.92);
+  --border: rgba(255, 255, 255, 0.12);
+  --muted: rgba(255, 255, 255, 0.55);
+  --accent: rgba(255, 255, 255, 0.7);
+  --shadow: rgba(0, 0, 0, 0.65);
+}
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { background: #06060c; overflow: hidden; margin: 0; }
+body { background: var(--bg); overflow: hidden; margin: 0; font-family: 'Space Grotesk', system-ui, sans-serif; color: #f7f8ff; }
 
 .app-container {
-  display: flex;
-  height: 100vh;
-  width: 100vw;
-  overflow: hidden;
-  background: #06060c;
-  color: #fff;
-  font-family: 'DM Sans', sans-serif;
-  position: absolute;
-  top: 0; left: 0;
-}
-
-.left-panel {
-  flex: 1.2;
   position: relative;
+  width: 100vw;
+  height: 100vh;
   overflow: hidden;
-  background: #0a0a12;
-  border-right: 1px solid rgba(255,255,255,0.05);
-  display: block;
-}
-.left-panel.hidden { flex: 0; border: none; }
-
-.masonry-wrapper {
-  display: flex;
-  gap: 20px;
-  padding: 20px;
-  height: 150vh;
-  transform: rotate(-4deg) scale(1.1);
-  margin-top: -10vh;
+  background: var(--bg);
+  font-family: 'Space Grotesk', sans-serif;
+  color: #f7f8ff;
 }
 
-.masonry-col { flex: 1; display: flex; flex-direction: column; gap: 20px; }
-
-.col-left { animation: scrollUp 40s linear infinite; }
-.col-right { animation: scrollDown 40s linear infinite; }
-
-@keyframes scrollUp { 0% { transform: translateY(0); } 100% { transform: translateY(-30%); } }
-@keyframes scrollDown { 0% { transform: translateY(-30%); } 100% { transform: translateY(0); } }
+.background-grid {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 18px;
+  padding: 48px;
+  transform: rotate(-0.8deg) scale(1.03);
+  z-index: 0;
+  pointer-events: none;
+}
 
 .photo-card {
   width: 100%;
-  padding-bottom: 130%;
+  aspect-ratio: 0.75 / 1;
   background-size: cover;
   background-position: center;
-  border-radius: 20px;
-  box-shadow: 0 20px 40px rgba(0,0,0,0.5);
-  border: 4px solid rgba(255,255,255,0.05);
+  border-radius: 26px;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.65);
+  border: 1px solid rgba(255,255,255,0.06);
+  opacity: 0.92;
+  filter: contrast(1.05) saturate(0.8);
+  animation: drift 36s ease-in-out infinite;
 }
 
 .overlay-gradient {
   position: absolute;
   inset: 0;
-  background: linear-gradient(90deg, transparent 60%, #06060c 100%),
-              radial-gradient(circle at center, transparent 30%, rgba(6,6,12,0.85) 100%);
+  background:
+    linear-gradient(180deg, rgba(3,7,18,0.84), rgba(3,7,18,0.9) 40%, rgba(3,7,18,0.95) 75%);
+  z-index: 1;
   pointer-events: none;
 }
 
-.right-panel {
-  flex: 1;
+.content-wrapper {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  position: relative;
-  overflow: hidden;
-  z-index: 10;
+  padding: 32px;
 }
-.right-panel.full-width { flex: 1; }
 
 .ambient-glow {
   position: absolute;
   border-radius: 50%;
-  filter: blur(100px);
-  opacity: 0.15;
+  filter: blur(120px);
+  opacity: 0.18;
   pointer-events: none;
-  z-index: -1;
+  z-index: 1;
 }
-.glow-1 { width: 500px; height: 500px; background: #f5c842; top: -100px; right: -100px; }
-.glow-2 { width: 600px; height: 600px; background: #50c8ff; bottom: -150px; left: -150px; }
-
+.glow-1 { width: 480px; height: 480px; background: rgba(255,255,255,0.18); top: -100px; right: -80px; }
+.glow-2 { width: 540px; height: 540px; background: rgba(255,255,255,0.08); bottom: -160px; left: -140px; }
 
 .card {
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.12);
-  border-radius: 24px;
-  padding: 40px 36px;
-  backdrop-filter: blur(12px);
-  color: #fff;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 32px;
+  padding: 42px 46px;
+  min-width: 320px;
+  max-width: 560px;
+  backdrop-filter: blur(24px);
+  box-shadow: 0 40px 120px var(--shadow);
+  color: #f7f8ff;
 }
 
-.trophy { font-size: 64px; text-align: center; margin-bottom: 8px; }
-.title  { font-family: 'Playfair Display', serif; font-size: 2rem; font-weight: 900; text-align: center; color: #fff; }
-.sub    { text-align: center; color: rgba(255,255,255,.5); font-size: 14px; margin-top: 6px; }
-.err    { color: #ff8080; font-size: 13px; text-align: center; margin-top: 6px; }
-.hint   { color: rgba(255,255,255,.3); font-size: 12px; text-align: center; margin-top: 16px; }
+.hero-symbol {
+  width: 72px;
+  height: 72px;
+  margin: 0 auto 24px;
+  border-radius: 24px;
+  border: 1px solid rgba(255,255,255,0.15);
+  background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.2), transparent 65%);
+  box-shadow: inset 0 -6px 10px rgba(0,0,0,0.3);
+  position: relative;
+}
+.hero-symbol::after {
+  content: "";
+  position: absolute;
+  inset: 18px;
+  border-radius: 16px;
+  background: rgba(255,255,255,0.05);
+}
+.mini-symbol {
+  width: 42px;
+  height: 42px;
+  margin: 0 auto 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,0.18);
+  background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.15), transparent 70%);
+  box-shadow: inset 0 -4px 8px rgba(0,0,0,0.4);
+}
+.title  { font-size: 2.3rem; font-weight: 600; text-align: center; letter-spacing: 0.04em; }
+.sub    { text-align: center; color: var(--muted); font-size: 14px; margin-top: 6px; }
+.err    { color: rgba(255, 119, 143, 0.7); font-size: 13px; text-align: center; margin-top: 6px; }
+.hint   { color: rgba(255,255,255,0.35); font-size: 13px; text-align: center; margin-top: 18px; letter-spacing: 0.02em; }
 
-.badge  { display: inline-block; background: rgba(245,200,66,.15); border: 1px solid rgba(245,200,66,.35); color: #f5c842; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; padding: 3px 12px; border-radius: 99px; margin-bottom: 12px; }
-.q-title { font-family: 'Playfair Display', serif; font-size: 1.5rem; font-weight: 700; color: #fff; line-height: 1.3; }
+.badge  { display: inline-flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); color: var(--muted); font-size: 11px; letter-spacing: 0.4em; text-transform: uppercase; padding: 4px 14px; border-radius: 999px; margin-bottom: 12px; }
+.q-title { font-size: 1.7rem; font-weight: 600; color: #f7f8ff; line-height: 1.35; }
 
 .field {
   width: 100%;
-  background: rgba(255,255,255,.08);
-  border: 1.5px solid rgba(255,255,255,.18);
-  border-radius: 14px;
+  background: rgba(255,255,255,0.04);
+  border: 1.5px solid rgba(255,255,255,0.12);
+  border-radius: 16px;
   padding: 14px 18px;
-  color: #fff;
+  color: #f7f8ff;
   font-size: 16px;
-  font-family: 'DM Sans', sans-serif;
   outline: none;
   transition: border-color .2s;
   display: block;
 }
-.field::placeholder { color: rgba(255,255,255,.3); }
-.field:focus { border-color: rgba(245,200,66,.7); }
+.field::placeholder { color: rgba(255,255,255,0.4); }
+.field:focus { border-color: rgba(255,255,255,0.35); }
 
 .dropdown {
   position: absolute;
   left: 0;
   right: 0;
   margin-top: 10px;
-  background: rgba(10, 10, 20, .92);
-  border: 1px solid rgba(255,255,255,.12);
-  border-radius: 16px;
+  background: rgba(8, 10, 18, 0.98);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 18px;
   overflow: hidden;
-  box-shadow: 0 18px 50px rgba(0,0,0,.55);
+  box-shadow: 0 24px 60px rgba(0,0,0,0.45);
   z-index: 40;
 }
 .drop-item {
@@ -531,84 +551,83 @@ body { background: #06060c; overflow: hidden; margin: 0; }
   padding: 12px 14px;
   border: none;
   background: transparent;
-  color: #fff;
+  color: #f7f8ff;
   cursor: pointer;
   display: flex;
   justify-content: space-between;
   gap: 12px;
 }
-.drop-item:hover { background: rgba(255,255,255,.06); }
+.drop-item:hover { background: rgba(255,255,255,0.04); }
 .drop-empty {
-  padding: 14px;
-  color: rgba(255,255,255,.55);
+  padding: 12px 14px;
+  color: rgba(255,255,255,0.5);
   font-size: 13px;
 }
 .clear-x {
   margin-left: 10px;
   border: none;
   background: transparent;
-  color: rgba(255,255,255,.5);
+  color: rgba(255,255,255,0.5);
   cursor: pointer;
   font-size: 12px;
   text-decoration: underline;
 }
 
 .btn-gold {
-  background: linear-gradient(135deg, #f5c842, #e8a800);
-  color: #1a1000;
-  font-weight: 700;
-  font-family: 'DM Sans', sans-serif;
+  background: rgba(255,255,255,0.08);
+  color: #f7f8ff;
+  font-weight: 600;
   font-size: 15px;
-  border: none;
-  border-radius: 14px;
-  padding: 14px 20px;
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 18px;
+  padding: 14px 24px;
   cursor: pointer;
-  transition: transform .15s, opacity .15s;
+  transition: transform .15s, opacity .15s, box-shadow .15s, border-color .15s;
+  box-shadow: 0 12px 28px rgba(0,0,0,0.45);
 }
-.btn-gold:hover  { transform: translateY(-1px); }
+.btn-gold:hover  { transform: translateY(-1px); border-color: rgba(255,255,255,0.4); }
 .btn-gold:active { transform: translateY(1px); }
-.btn-gold:disabled { opacity: .5; cursor: default; transform: none; }
+.btn-gold:disabled { opacity: .5; cursor: default; }
 
 .btn-ghost {
-  background: rgba(255,255,255,.07);
-  color: rgba(255,255,255,.6);
+  background: rgba(255,255,255,0.04);
+  color: rgba(255,255,255,0.7);
   font-weight: 500;
-  font-family: 'DM Sans', sans-serif;
   font-size: 14px;
-  border: 1px solid rgba(255,255,255,.12);
-  border-radius: 14px;
-  padding: 13px 18px;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 18px;
+  padding: 14px 18px;
   cursor: pointer;
-  transition: background .15s;
+  transition: background .15s, border-color .15s;
 }
-.btn-ghost:hover { background: rgba(255,255,255,.12); }
+.btn-ghost:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.2); }
 
-.bar-track { height: 5px; background: rgba(255,255,255,.12); border-radius: 99px; overflow: hidden; }
-.bar-fill  { height: 100%; background: linear-gradient(90deg, #f5c842, #ff9d00); border-radius: 99px; transition: width .4s ease; }
+.bar-track { height: 5px; background: rgba(255,255,255,0.05); border-radius: 999px; overflow: hidden; }
+.bar-fill  { height: 100%; background: linear-gradient(90deg, rgba(255,255,255,0.35), rgba(255,255,255,0.65)); border-radius: 999px; transition: width .4s ease; }
 
 .scroll-list { max-height: 320px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
 .scroll-list::-webkit-scrollbar { width: 4px; }
-.scroll-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,.15); border-radius: 2px; }
+.scroll-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
 
-.row-item  { display: flex; align-items: center; gap: 10px; background: rgba(255,255,255,.05); border-radius: 12px; padding: 10px 14px; }
-.row-label { font-size: 12px; color: rgba(255,255,255,.55); flex: 1; }
-.row-val   { font-size: 13px; font-weight: 600; color: #f5c842; white-space: nowrap; }
-.row-skip  { font-size: 12px; color: rgba(255,255,255,.2); font-style: italic; }
+.row-item  { display: flex; align-items: center; gap: 10px; background: rgba(255,255,255,0.03); border-radius: 16px; padding: 10px 14px; border: 1px solid rgba(255,255,255,0.04); }
+.row-label { font-size: 12px; color: rgba(255,255,255,0.45); flex: 1; }
+.row-val   { font-size: 13px; font-weight: 600; color: #f7f8ff; white-space: nowrap; }
+.row-skip  { font-size: 12px; color: rgba(255,255,255,0.3); font-style: italic; }
 
 .gender-pill{
   display:inline-block;
   margin: 10px auto 0;
-  padding: 6px 12px;
+  padding: 7px 16px;
   border-radius: 999px;
   font-size: 12px;
-  font-weight: 700;
-  letter-spacing: .02em;
-  border: 1px solid rgba(255,255,255,.12);
-  background: rgba(255,255,255,.06);
-  color: rgba(255,255,255,.8);
+  font-weight: 600;
+  letter-spacing: .04em;
+  border: 1px solid rgba(255,255,255,0.15);
+  background: rgba(255,255,255,0.02);
+  color: rgba(255,255,255,0.75);
 }
-.pill-m{ background: rgba(80,200,255,.12); border-color: rgba(80,200,255,.35); color:#78d9ff; }
-.pill-f{ background: rgba(255,120,190,.12); border-color: rgba(255,120,190,.35); color:#ff9bd2; }
+.pill-m{ background: rgba(255,255,255,0.02); border-color: rgba(255,255,255,0.25); color: rgba(255,255,255,0.75); }
+.pill-f{ background: rgba(255,255,255,0.02); border-color: rgba(255,255,255,0.25); color: rgba(255,255,255,0.75); }
 
 .sparkles {
   position: relative;
@@ -616,13 +635,13 @@ body { background: #06060c; overflow: hidden; margin: 0; }
   height: 10px;
   margin: 20px auto 0;
   border-radius: 50%;
-  background: #f5c842;
+  background: rgba(255,255,255,0.85);
   box-shadow:
-    0 -22px 0 0 rgba(245,200,66,.25),
-    18px -10px 0 0 rgba(80,200,255,.25),
-    22px 6px 0 0 rgba(255,120,190,.18),
-    -16px 10px 0 0 rgba(110,255,190,.18),
-    -22px -8px 0 0 rgba(245,200,66,.18);
+    0 -22px 0 0 rgba(255,255,255,0.2),
+    18px -10px 0 0 rgba(255,255,255,0.08),
+    22px 6px 0 0 rgba(255,255,255,0.05),
+    -16px 10px 0 0 rgba(255,255,255,0.05),
+    -22px -8px 0 0 rgba(255,255,255,0.05);
   animation: sparklePop .9s ease-out both;
 }
 
@@ -632,6 +651,13 @@ body { background: #06060c; overflow: hidden; margin: 0; }
   100% { transform: scale(1.15); opacity: 0; }
 }
 
+@keyframes drift {
+  0% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-16px) scale(1.02); }
+  100% { transform: translateY(0) scale(1); }
+}
+
 @keyframes fadeInUp { from { opacity:0; transform: translateY(18px); } to { opacity:1; transform: translateY(0); } }
 .fade-in { animation: fadeInUp .35s ease both; }
 `;
+
