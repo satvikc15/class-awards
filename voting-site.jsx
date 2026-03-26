@@ -1,145 +1,197 @@
 import { useState, useEffect } from "react";
 
 const CATEGORIES = [
-  { id: "1",  emoji: "💍", label: "Most likely to be late to their own wedding" },
-  { id: "2",  emoji: "📢", label: "Loudest mouth in the class" },
-  { id: "3",  emoji: "😴", label: "Sleepiest person in the class" },
-  { id: "4",  emoji: "🕵️", label: "Most mysterious person" },
-  { id: "5",  emoji: "🎭", label: "Most dramatic" },
-  { id: "6",  emoji: "🔄", label: "Most likely to switch careers" },
-  { id: "7",  emoji: "😂", label: "Will become a meme one day" },
-  { id: "8",  emoji: "👑", label: "Best hairline (men)" },
-  { id: "9",  emoji: "🧔", label: "Best beard (men)" },
-  { id: "10", emoji: "💇", label: "Best hair (women)" },
-  { id: "11", emoji: "⚡", label: "Most active person" },
-  { id: "12", emoji: "🍎", label: "Teacher's pet" },
-  { id: "13", emoji: "💑", label: "Best couple" },
-  { id: "14", emoji: "👯", label: "Best friendship duo" },
-  { id: "15", emoji: "💼", label: "Most likely to become a CEO" },
-  { id: "16", emoji: "🎨", label: "Most creative" },
-  { id: "17", emoji: "🖌️", label: "Best artist" },
-  { id: "18", emoji: "✍️", label: "Best writer" },
-  { id: "19", emoji: "💻", label: "Best programmer" },
-  { id: "20", emoji: "🎮", label: "Best pro gamer" },
-  { id: "21", emoji: "🏛️", label: "Future politician" },
-  { id: "22", emoji: "🍕", label: "Most hungry" },
-  { id: "23", emoji: "📱", label: "Phone addict" },
-  { id: "24", emoji: "🎓", label: "The professor of the class" },
-  { id: "25", emoji: "🏅", label: "Best athlete" },
-  { id: "26", emoji: "🏏", label: "Best cricketer" },
-  { id: "27", emoji: "🎤", label: "Best singer" },
-  { id: "28", emoji: "💃", label: "Best dancer" },
-  { id: "29", emoji: "🎙️", label: "Best speaker" },
-  { id: "30", emoji: "😈", label: "Most notorious" },
-  { id: "31", emoji: "🍬", label: "The sweetest" },
-  { id: "32", emoji: "⚽", label: "Best footballer" },
-  { id: "33", emoji: "😊", label: "The friendliest" },
-  { id: "34", emoji: "💛", label: "Most kind / helpful" },
-  { id: "35", emoji: "📅", label: "Best attendance" },
-  { id: "36", emoji: "🚔", label: "Most likely to end up in prison" },
-  { id: "37", emoji: "🦋", label: "Shortest attention span" },
-  { id: "38", emoji: "👂", label: "Best listener" },
-  { id: "39", emoji: "📞", label: "Friend available 24/7" },
-  { id: "40", emoji: "🐸", label: "Class meme" },
-  { id: "41", emoji: "📚", label: "Most likely to become a professor" },
-  { id: "42", emoji: "📖", label: "Don't judge a book by its cover" },
-  { id: "43", emoji: "🌐", label: "Most likely to go viral on social media" },
-  { id: "44", emoji: "👗", label: "Best dressed / most fashionable" },
-  { id: "45", emoji: "🌙", label: "Night owl (stays up the latest)" },
-  { id: "46", emoji: "🍳", label: "Best cook in the class" },
-  { id: "47", emoji: "✈️", label: "Most likely to travel the world" },
-  { id: "48", emoji: "☮️", label: "The peacemaker" },
+  { id: "1",  emoji: "💍", label: "Most likely to be late to their own wedding", gender: null },
+  { id: "2",  emoji: "📢", label: "Human Megaphone", gender: null },
+  { id: "3",  emoji: "😴", label: "Professional Napper", gender: null },
+  { id: "4",  emoji: "🕵️", label: "Most mysterious person", gender: null },
+  { id: "5",  emoji: "🎭", label: "Oscar-Worthy Drama King/Queen", gender: null },
+  { id: "6",  emoji: "😂", label: "Will become a meme one day", gender: null },
+  { id: "7",  emoji: "👑", label: "Best Hairline (boys)", gender: "M" },
+  { id: "8",  emoji: "🧔", label: "Best Beard (boys)", gender: "M" },
+  { id: "9",  emoji: "💇", label: "Hair That Deserves Its Own Shampoo Ad (girls)", gender: "F" },
+  { id: "10", emoji: "⚡", label: "Runs on Red Bull & Pure Chaos (Most active person)", gender: null },
+  { id: "11", emoji: "🍎", label: "Teacher's Pet", gender: null },
+  { id: "12", emoji: "💑", label: "Couple Goals (Officially or Unofficially)", gender: "MF" },
+  { id: "13", emoji: "👯", label: "The Unbreakable Duo", gender: null, slots: 2 },
+  { id: "14", emoji: "💼", label: "Future Forbes Cover Star (Most likely to become a CEO)", gender: null },
+  { id: "15", emoji: "🎨", label: "Born with a Creative Brain", gender: null },
+  { id: "16", emoji: "💻", label: "Best Programmer", gender: null },
+  { id: "17", emoji: "🎮", label: "Would Rage-Quit Real Life for Gaming (Best ProGamer)", gender: null },
+  { id: "18", emoji: "🏛️", label: "Future Minister", gender: null },
+  { id: "19", emoji: "📱", label: "Phone is Basically a Body Part", gender: null },
+  { id: "20", emoji: "🎓", label: "The professor of the class", gender: null },
+  { id: "21", emoji: "🏅", label: "Built Different — Best Athlete", gender: null },
+  { id: "22", emoji: "🏏", label: "Best cricketer", gender: null },
+  { id: "23", emoji: "🎤", label: "Best singer", gender: null },
+  { id: "24", emoji: "💃", label: "Best Dancer", gender: null },
+  { id: "25", emoji: "🎙️", label: "Best Speaker", gender: null },
+  { id: "26", emoji: "😈", label: "Most Notorious", gender: null },
+  { id: "27", emoji: "💛", label: "Walking Green Flag", gender: null },
+  { id: "28", emoji: "🍬", label: "Sweetest Person", gender: null },
+  { id: "29", emoji: "👂", label: "Free Therapist (No Appointment Needed)", gender: null },
+  { id: "30", emoji: "👗", label: "Best Dressing Sense", gender: null },
+  { id: "31", emoji: "☮️", label: "UN Ambassador of the Classroom (Conflict Resolver)", gender: null },
+  { id: "32", emoji: "✏️", label: "Sharpest Eyeliner in the Room (girls)", gender: "F" },
+  { id: "33", emoji: "👜", label: "Accessory Queen — Always Dripping in Jewelry (girls)", gender: "F" },
+  { id: "34", emoji: "💪", label: "Girl Boss Energy — Future Glass Ceiling Smasher (girls)", gender: "F" },
+  { id: "35", emoji: "🎬", label: "The Best Trio", gender: null, slots: 3 },
+  { id: "36", emoji: "🔄", label: "Most likely to switch careers", gender: null },
+  { id: "37", emoji: "📅", label: "Never misses a day (The one with the perfect attendance)", gender: null },
+  { id: "38", emoji: "😂", label: "Most Humorous", gender: null },
+  { id: "39", emoji: "📚", label: "That one friend you call for exam material", gender: null },
+  { id: "40", emoji: "📞", label: "That one person who is always on a call", gender: null },
+  { id: "41", emoji: "💼", label: "The entrepreneur", gender: null },
+  { id: "42", emoji: "🍳", label: "That one friend who cooks like a chef", gender: null },
+  { id: "43", emoji: "🎉", label: "Event Planner (That person who is the first when conducting an event)", gender: null },
 ];
 
-/* storage keys — must match nomination site */
-const NK          = "ca_noms_v3";
-const PHASE_KEY   = "ca_phase_v3";
-const FINALIST_K  = "ca_finalists_v3";
-const VOTES_K     = "ca_votes_v3";
-const VOTED_K     = "ca_voted_v3";
-const ADMIN_PASS  = "awards2025";
+const apiGet = async (path) => {
+  const res = await fetch(path, { method: "GET", headers: { "Content-Type": "application/json" } });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+};
+
+const apiPost = async (path, body) => {
+  const res = await fetch(path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+};
 
 const toTitle = (s) => s.replace(/\b\w/g, (c) => c.toUpperCase());
 const getTop3 = (obj) =>
   Object.entries(obj || {}).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([n]) => n);
 
 /* ── Main component ──────────────────────────────────── */
-export default function VotingSite() {
+export default function VotingSite({ me, rosterMap }) {
   const [initializing, setInitializing] = useState(true);
   const [phase, setPhase]           = useState("nominating"); // nominating | voting | results
   const [finalists, setFinalists]   = useState({});
   const [allVotes, setAllVotes]     = useState({});
 
-  // mode: hub | admin-login | admin | student-login | voting | voted | results
-  const [mode, setMode]             = useState("hub");
+  // mode: hub | admin | student-login | voting | voted | results
+  const [mode, setMode]             = useState(me?.admin ? "admin" : "hub");
   const [adminPass, setAdminPass]   = useState("");
   const [adminErr, setAdminErr]     = useState("");
   const [nominations, setNominations] = useState({});
 
-  const [studentName, setStudentName] = useState("");
+  const [studentName, setStudentName] = useState(me?.roll || "");
   const [nameErr, setNameErr]         = useState("");
   const [votes, setVotes]             = useState({});
   const [voteIdx, setVoteIdx]         = useState(0);
   const [busy, setBusy]               = useState(false);
+  const [enc, setEnc]                 = useState("");
+  const [voteFilter, setVoteFilter]   = useState("");
 
   useEffect(() => { init(); }, []);
+  useEffect(() => {
+    if (!me?.admin) return;
+    setAdminPass(me?.adminPass || "");
+    setMode("admin");
+    // Load admin state once password is present
+    if (!me?.adminPass) return;
+    (async () => {
+      try {
+        const s = await apiPost("/api/admin/state", { adminPass: me.adminPass });
+        setPhase(s.phase || "nominating");
+        setNominations(s.nominations || {});
+        setFinalists(s.finalists || {});
+        setAllVotes(s.votes || {});
+      } catch {}
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [me?.admin, me?.adminPass]);
+  useEffect(() => {
+    if (mode !== "voted") return;
+    const options = [
+      "Class is about to crown someone… and we love it.",
+      "Your vote is in. Democracy (but make it fun) works.",
+      "You made the scoreboard more exciting. Respect.",
+      "Thanks for participating. The legends thank you.",
+    ];
+    const seed = (studentName || "").trim().toLowerCase();
+    const pick = options[(seed.length + (seed.charCodeAt(0 || 0) || 0)) % options.length] || options[0];
+    setEnc(pick);
+  }, [mode, studentName]);
+
+  useEffect(() => {
+    if (mode !== "results") return;
+    refreshVotes();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode]);
 
   const init = async () => {
     try {
-      const pr = await window.storage.get(PHASE_KEY, true);
-      const p  = pr ? pr.value : "nominating";
+      const r = await apiGet("/api/public/state");
+      const p = r.phase || "nominating";
       setPhase(p);
-      if (p === "voting" || p === "results") {
-        try { const r = await window.storage.get(FINALIST_K, true); if (r) setFinalists(JSON.parse(r.value)); } catch {}
-        try { const r = await window.storage.get(VOTES_K, true);    if (r) setAllVotes(JSON.parse(r.value));  } catch {}
-      }
+      setFinalists(r.finalists || {});
+      setAllVotes(r.votes || {});
     } catch {}
     setInitializing(false);
   };
 
-  /* ── ADMIN ── */
-  const handleAdminLogin = async () => {
-    if (adminPass !== ADMIN_PASS) { setAdminErr("Wrong password"); return; }
-    try { const r = await window.storage.get(NK, true); if (r) setNominations(JSON.parse(r.value)); } catch {}
-    setMode("admin");
-  };
+  /* ── ADMIN ── (hidden entry via special login) */
 
   const finalizeNominations = async () => {
     setBusy(true);
-    const computed = {};
-    for (const c of CATEGORIES) computed[c.id] = getTop3(nominations[c.id]);
-    await window.storage.set(FINALIST_K, JSON.stringify(computed), true);
-    await window.storage.set(PHASE_KEY, "voting", true);
-    setFinalists(computed);
-    setPhase("voting");
-    setBusy(false);
-    alert("✅ Voting phase is now OPEN. Students can vote!");
+    try {
+      const r = await apiPost("/api/admin/finalize", { adminPass });
+      setFinalists(r.finalists || {});
+      setAllVotes({});
+      setPhase("voting");
+      setBusy(false);
+      alert("✅ Voting phase is now OPEN. Students can vote!");
+    } catch (e) {
+      setBusy(false);
+      alert("Could not open voting. Try again.");
+    }
   };
 
   const lockVoting = async () => {
-    await window.storage.set(PHASE_KEY, "results", true);
-    try { const r = await window.storage.get(VOTES_K, true); if (r) setAllVotes(JSON.parse(r.value)); } catch {}
-    setPhase("results");
-    alert("🏆 Voting locked! Results are visible.");
+    setBusy(true);
+    try {
+      const r = await apiPost("/api/admin/lock-voting", { adminPass });
+      setPhase("results");
+      setFinalists(r.finalists || finalists);
+      setAllVotes(r.votes || {});
+      setBusy(false);
+      alert("🏆 Voting locked! Results are visible.");
+    } catch (e) {
+      setBusy(false);
+      alert("Could not lock voting. Try again.");
+    }
   };
 
   const refreshVotes = async () => {
-    try { const r = await window.storage.get(VOTES_K, true); if (r) setAllVotes(JSON.parse(r.value)); } catch {}
+    try {
+      const r = await apiGet("/api/public/state");
+      setPhase(r.phase || "nominating");
+      setFinalists(r.finalists || {});
+      setAllVotes(r.votes || {});
+    } catch {}
   };
 
   /* ── STUDENT VOTING ── */
   const handleStudentStart = async () => {
     const n = studentName.trim();
-    if (!n) { setNameErr("Please enter your name"); return; }
+    if (!n) { setNameErr("Missing roll number"); return; }
     setBusy(true);
     try {
-      const r = await window.storage.get(VOTED_K, true);
-      const list = r ? JSON.parse(r.value) : [];
-      if (list.some((x) => x.toLowerCase() === n.toLowerCase())) {
+      const r = await apiGet(`/api/votes/voted/check?name=${encodeURIComponent(n)}`);
+      if (r.exists) {
         setNameErr("You have already voted!");
         setBusy(false); return;
       }
-    } catch {}
+    } catch {
+      setNameErr("Could not check your vote status. Please try again.");
+      setBusy(false);
+      return;
+    }
     setBusy(false);
     setMode("voting");
   };
@@ -156,21 +208,14 @@ export default function VotingSite() {
   const submitVotes = async (finalVotes) => {
     setBusy(true);
     try {
-      let vdata = {};
-      try { const r = await window.storage.get(VOTES_K, true); if (r) vdata = JSON.parse(r.value); } catch {}
-      for (const [cid, nominee] of Object.entries(finalVotes)) {
-        if (!vdata[cid]) vdata[cid] = {};
-        vdata[cid][nominee] = (vdata[cid][nominee] || 0) + 1;
-      }
-      await window.storage.set(VOTES_K, JSON.stringify(vdata), true);
-
-      let list = [];
-      try { const r = await window.storage.get(VOTED_K, true); if (r) list = JSON.parse(r.value); } catch {}
-      list.push(studentName.trim());
-      await window.storage.set(VOTED_K, JSON.stringify(list), true);
+      await apiPost("/api/votes/submit", {
+        user_id: studentName.trim(),
+        username: rosterMap?.get(String(studentName.trim())) || "",
+        votes: finalVotes,
+      });
 
       setMode("voted");
-    } catch { alert("Vote failed, please try again."); }
+    } catch (e) { alert("Vote failed, please try again."); }
     setBusy(false);
   };
 
@@ -203,35 +248,6 @@ export default function VotingSite() {
             🏅 See Results
           </button>
         )}
-        <button className="btn-ghost" onClick={() => setMode("admin-login")} style={{ width: "100%", marginTop: 4 }}>
-          🔒 Admin Panel
-        </button>
-      </div>
-    </Shell>
-  );
-
-  /* ─ ADMIN LOGIN ─ */
-  if (mode === "admin-login") return (
-    <Shell><style>{css}</style>
-      <div className="card fade-in" style={{ maxWidth: 380, textAlign: "center" }}>
-        <div style={{ fontSize: 48 }}>🔒</div>
-        <h2 className="title" style={{ fontSize: "1.5rem", marginTop: 8 }}>Admin Access</h2>
-        <input
-          className="field"
-          type="password"
-          placeholder="Enter admin password"
-          value={adminPass}
-          onChange={(e) => { setAdminPass(e.target.value); setAdminErr(""); }}
-          onKeyDown={(e) => e.key === "Enter" && handleAdminLogin()}
-          style={{ textAlign: "center", marginTop: 24 }}
-        />
-        {adminErr && <p className="err">{adminErr}</p>}
-        <button className="btn-gold" onClick={handleAdminLogin} style={{ width: "100%", marginTop: 12 }}>
-          Login
-        </button>
-        <button className="btn-ghost" onClick={() => setMode("hub")} style={{ width: "100%", marginTop: 8 }}>
-          ← Back
-        </button>
       </div>
     </Shell>
   );
@@ -330,17 +346,13 @@ export default function VotingSite() {
       <div className="card fade-in" style={{ maxWidth: 420, textAlign: "center" }}>
         <div style={{ fontSize: 56 }}>🗳️</div>
         <h2 className="title" style={{ marginTop: 8 }}>Cast Your Votes</h2>
-        <p className="sub">Vote for the top 3 nominees in each category</p>
-        <input
-          className="field"
-          placeholder="Enter your full name"
-          value={studentName}
-          onChange={(e) => { setStudentName(e.target.value); setNameErr(""); }}
-          onKeyDown={(e) => e.key === "Enter" && handleStudentStart()}
-          style={{ textAlign: "center", marginTop: 24 }}
-        />
+        <p className="sub">
+          Vote for the finalists in each category<br />
+          <span style={{ color: "rgba(255,255,255,.35)" }}>Logged in as</span>{" "}
+          <span style={{ color: "#f5c842", fontWeight: 800 }}>{me?.roll}</span>
+        </p>
         {nameErr && <p className="err">{nameErr}</p>}
-        <button className="btn-gold" onClick={handleStudentStart} disabled={busy} style={{ width: "100%", marginTop: 12 }}>
+        <button className="btn-gold" onClick={handleStudentStart} disabled={busy} style={{ width: "100%", marginTop: 18 }}>
           {busy ? "Checking…" : "Start Voting →"}
         </button>
         <button className="btn-ghost" onClick={() => setMode("hub")} style={{ width: "100%", marginTop: 8 }}>← Back</button>
@@ -352,7 +364,15 @@ export default function VotingSite() {
   /* ─ VOTING FLOW ─ */
   if (mode === "voting") {
     const cat  = CATEGORIES[voteIdx];
-    const opts = finalists[cat.id] || [];
+    const optsRaw = finalists[cat.id] || [];
+    const f = voteFilter.trim().toLowerCase();
+    const opts = !f
+      ? optsRaw
+      : optsRaw.filter((roll) => {
+          const r = String(roll);
+          const n = rosterMap?.get(r) || "";
+          return `${r} ${n}`.toLowerCase().includes(f);
+        });
     const pct  = Math.round((voteIdx / CATEGORIES.length) * 100);
     const selected = votes[cat.id];
 
@@ -371,9 +391,20 @@ export default function VotingSite() {
           <p className="badge" style={{ marginTop: 8 }}>Award #{cat.id}</p>
           <h2 className="q-title">{cat.label}</h2>
 
+          <input
+            className="field"
+            placeholder="Search finalists by roll or name…"
+            value={voteFilter}
+            onChange={(e) => setVoteFilter(e.target.value)}
+            style={{ marginTop: 18 }}
+          />
+
           <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 24, marginBottom: 24 }}>
-            {opts.length === 0 && (
+            {optsRaw.length === 0 && (
               <p style={{ color: "rgba(255,255,255,.4)", fontSize: 14 }}>No nominees for this category</p>
+            )}
+            {optsRaw.length > 0 && opts.length === 0 && (
+              <p style={{ color: "rgba(255,255,255,.4)", fontSize: 14 }}>No matches.</p>
             )}
             {opts.map((n, i) => (
               <button
@@ -382,7 +413,9 @@ export default function VotingSite() {
                 className={`nominee-btn ${selected === n ? "nominee-selected" : ""}`}
               >
                 <span style={{ fontSize: 20 }}>{i === 0 ? "🥇" : i === 1 ? "🥈" : "🥉"}</span>
-                <span style={{ flex: 1, textAlign: "left" }}>{toTitle(n)}</span>
+                <span style={{ flex: 1, textAlign: "left" }}>
+                  {rosterMap?.get(String(n)) ? `${rosterMap.get(String(n))} (${n})` : toTitle(n)}
+                </span>
                 {selected === n && <span>✓</span>}
               </button>
             ))}
@@ -418,8 +451,9 @@ export default function VotingSite() {
         <h2 className="title" style={{ marginTop: 12 }}>Votes Submitted!</h2>
         <p className="sub" style={{ marginTop: 8 }}>
           Thank you, <span style={{ color: "#f5c842", fontWeight: 600 }}>{studentName}</span>!<br />
-          Results will be announced soon. Stay tuned!
+          {enc || "Results will be announced soon. Stay tuned!"}
         </p>
+        <div className="sparkles" aria-hidden="true" />
       </div>
     </Shell>
   );
@@ -449,7 +483,7 @@ export default function VotingSite() {
                   {sorted.map((n, i) => (
                     <span key={n} className={`nom-chip ${i === 0 ? "chip-lead" : ""}`}>
                       {i === 0 ? "🥇 " : i === 1 ? "🥈 " : "🥉 "}
-                      {toTitle(n)} — {cv[n] || 0} votes
+                      {rosterMap?.get(String(n)) ? `${rosterMap.get(String(n))} (${n})` : toTitle(n)} — {cv[n] || 0} votes
                     </span>
                   ))}
                   {f.length === 0 && <span className="row-skip">no data</span>}
@@ -471,7 +505,10 @@ function Shell({ children }) {
   return (
     <div style={{
       minHeight: "100vh",
-      background: "linear-gradient(135deg, #0a0f1e 0%, #161040 50%, #0d1f2d 100%)",
+      background:
+        "radial-gradient(900px circle at 20% 12%, rgba(245,200,66,.12), transparent 40%)," +
+        "radial-gradient(700px circle at 80% 25%, rgba(80,255,120,.10), transparent 45%)," +
+        "linear-gradient(135deg, #0a0f1e 0%, #161040 50%, #0d1f2d 100%)",
       display: "flex", flexDirection: "column",
       alignItems: "center", justifyContent: "center", padding: 20,
       fontFamily: "'DM Sans', sans-serif",
@@ -551,6 +588,28 @@ const css = `
 .phase-nominating { background:rgba(80,200,255,.15); color:#50c8ff; }
 .phase-voting     { background:rgba(80,255,120,.15); color:#50ff78; }
 .phase-results    { background:rgba(245,200,66,.15); color:#f5c842; }
+
+.sparkles {
+  position: relative;
+  width: 10px;
+  height: 10px;
+  margin: 22px auto 0;
+  border-radius: 50%;
+  background: #f5c842;
+  box-shadow:
+    0 -22px 0 0 rgba(245,200,66,.25),
+    18px -10px 0 0 rgba(80,255,120,.18),
+    22px 6px 0 0 rgba(255,120,190,.18),
+    -16px 10px 0 0 rgba(110,255,190,.18),
+    -22px -8px 0 0 rgba(245,200,66,.18);
+  animation: sparklePop .9s ease-out both;
+}
+
+@keyframes sparklePop {
+  0% { transform: scale(.6); opacity: .0; }
+  35% { opacity: 1; }
+  100% { transform: scale(1.15); opacity: 0; }
+}
 
 @keyframes fadeInUp { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
 .fade-in { animation:fadeInUp .35s ease both; }
