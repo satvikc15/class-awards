@@ -4,6 +4,9 @@ from typing import Any, Dict
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+import os
 from motor.motor_asyncio import AsyncIOMotorClient
 
 from .models import (
@@ -296,3 +299,26 @@ async def submit_votes(req: SubmitVotesRequest) -> dict[str, Any]:
 
     return {"ok": True, "incApplied": bool(inc)}
 
+# --- FRONTEND SERVING ---
+# Define where the built frontend files will live
+dist_dir = os.path.join(os.path.dirname(__file__), "..", "dist")
+
+# If the dist folder exists (e.g., after running build.sh), serve it
+if os.path.exists(dist_dir):
+    # Serve assets (js, css, images) from the /assets directory
+    app.mount("/assets", StaticFiles(directory=os.path.join(dist_dir, "assets")), name="assets")
+    
+    # Catch-all route to serve the main index.html for any non-API routes
+    @app.get("/{full_path:path}")
+    async def serve_frontend(full_path: str):
+        # Prevent catching API routes
+        if full_path.startswith("api/"):
+            raise HTTPException(status_code=404, detail="API route not found")
+        
+        # Check if requesting a specific file that isn't in /assets (e.g. favicon.ico, students.csv)
+        file_path = os.path.join(dist_dir, full_path)
+        if os.path.isfile(file_path):
+            return FileResponse(file_path)
+            
+        # Otherwise, return the main index.html for client-side routing
+        return FileResponse(os.path.join(dist_dir, "index.html"))
