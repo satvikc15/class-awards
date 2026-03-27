@@ -45,3 +45,16 @@ class SendOtpRequest(BaseModel):
 class VerifyOtpRequest(BaseModel):
     roll: str = Field(..., description="Full roll number")
     otp: str = Field(..., description="6-digit OTP code")
+
+
+class SaveDraftRequest(BaseModel):
+    user_id: str = Field("", description="Roll number of the nominator")
+    username: str = Field("", description="Full name of the nominator")
+    email: str = Field("", description="Email of the nominator")
+    picks: Dict[str, str] = Field(
+        ..., description="categoryId -> nominee roll (partial OK)"
+    )
+
+
+class GetDraftRequest(BaseModel):
+    user_id: str = Field(..., description="Roll number to fetch draft for")

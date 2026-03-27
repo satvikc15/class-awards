@@ -18,7 +18,9 @@ from motor.motor_asyncio import AsyncIOMotorClient
 
 from .models import (
     AdminPassRequest,
+    GetDraftRequest,
     RemoveNominatorRequest,
+    SaveDraftRequest,
     SendOtpRequest,
     SubmitNominationsRequest,
     SubmitVotesRequest,
@@ -117,6 +119,7 @@ def require_admin(admin_pass: str) -> None:
 
 # ─── OTP helpers ─────────────────────────────────────
 otp_collection = mongo_client[settings.mongodb_db]["otp_store"]
+drafts_collection = mongo_client[settings.mongodb_db]["nomination_drafts"]
 
 
 def generate_otp() -> str:
@@ -316,6 +319,142 @@ async def submit_nominations(req: SubmitNominationsRequest) -> dict[str, Any]:
     return {"ok": True}
 
 
+# ─── Draft-based nomination flow ────────────────────
+
+@app.post("/api/nominations/draft/save")
+async def save_draft(req: SaveDraftRequest) -> dict[str, Any]:
+    """Save (upsert) partial nomination picks as a draft.
+    Rejects if the user has already finalized."""
+    state = await get_state()
+    if state.get("phase") != "nominating":
+        raise HTTPException(status_code=409, detail="Nominations are closed")
+
+    user_id = normalize_name(req.user_id)
+    if not user_id:
+        raise HTTPException(status_code=400, detail="user_id is required")
+    user_id_lower = normalize_name_lower(user_id)
+
+    # Check if already finalized
+    existing = await drafts_collection.find_one({"_id": user_id_lower})
+    if existing and existing.get("is_final"):
+        raise HTTPException(status_code=409, detail="You have already submitted final nominations")
+
+    # Normalize picks
+    normalized_picks: Dict[str, str] = {}
+    for cid, nominee in (req.picks or {}).items():
+        if cid not in ALLOWED_CATEGORY_IDS:
+            continue
+        nominee_norm = normalize_roll(nominee)
+        if nominee_norm:
+            normalized_picks[cid] = nominee_norm
+
+    await drafts_collection.update_one(
+        {"_id": user_id_lower},
+        {
+            "$set": {
+                "user_id": user_id,
+                "username": normalize_name(req.username) if req.username else "",
+                "email": req.email,
+                "picks": normalized_picks,
+                "is_final": False,
+                "updated_at": datetime.utcnow(),
+            }
+        },
+        upsert=True,
+    )
+
+    return {"ok": True}
+
+
+@app.post("/api/nominations/draft/get")
+async def get_draft(req: GetDraftRequest) -> dict[str, Any]:
+    """Return the user's current draft (or empty if none exists)."""
+    user_id = normalize_name(req.user_id)
+    if not user_id:
+        raise HTTPException(status_code=400, detail="user_id is required")
+    user_id_lower = normalize_name_lower(user_id)
+
+    doc = await drafts_collection.find_one({"_id": user_id_lower})
+    if not doc:
+        return {"ok": True, "picks": {}, "is_final": False}
+
+    return {
+        "ok": True,
+        "picks": doc.get("picks", {}),
+        "is_final": doc.get("is_final", False),
+    }
+
+
+@app.post("/api/nominations/draft/finalize")
+async def finalize_draft(req: GetDraftRequest) -> dict[str, Any]:
+    """Lock the draft and apply the nominations to the global tally."""
+    state = await get_state()
+    if state.get("phase") != "nominating":
+        raise HTTPException(status_code=409, detail="Nominations are closed")
+
+    user_id = normalize_name(req.user_id)
+    if not user_id:
+        raise HTTPException(status_code=400, detail="user_id is required")
+    user_id_lower = normalize_name_lower(user_id)
+
+    doc = await drafts_collection.find_one({"_id": user_id_lower})
+    if not doc:
+        raise HTTPException(status_code=404, detail="No draft found. Please save your nominations first.")
+    if doc.get("is_final"):
+        raise HTTPException(status_code=409, detail="Nominations already submitted")
+
+    picks = doc.get("picks", {})
+    if not picks:
+        raise HTTPException(status_code=400, detail="No nominations in draft")
+
+    # Check if already in nominators (edge case / double-submit guard)
+    if user_id_lower in set(state.get("nominators_lower", [])):
+        # Mark draft as final anyway
+        await drafts_collection.update_one(
+            {"_id": user_id_lower}, {"$set": {"is_final": True}}
+        )
+        raise HTTPException(status_code=409, detail="You have already submitted nominations")
+
+    # Build increment operations for the global tally
+    inc: Dict[str, int] = {}
+    for cid, nominee_norm in picks.items():
+        if cid in ALLOWED_CATEGORY_IDS and nominee_norm:
+            inc[f"nominations.{cid}.{nominee_norm}"] = inc.get(f"nominations.{cid}.{nominee_norm}", 0) + 1
+
+    if not inc:
+        raise HTTPException(status_code=400, detail="No valid nominations found in draft")
+
+    # Apply to global state
+    await collection.update_one(
+        {"_id": DEFAULT_STATE["_id"]},
+        {
+            "$inc": inc,
+            "$addToSet": {"nominators_lower": user_id_lower},
+        },
+        upsert=True,
+    )
+
+    # Store in nominators collection (for reverse on admin remove)
+    nominators_col = mongo_client[settings.mongodb_db]["nominators"]
+    await nominators_col.update_one(
+        {"_id": user_id_lower},
+        {"$set": {
+            "user_id": doc.get("user_id", user_id),
+            "username": doc.get("username", ""),
+            "email": doc.get("email", ""),
+            "picks": picks,
+        }},
+        upsert=True,
+    )
+
+    # Mark draft as final
+    await drafts_collection.update_one(
+        {"_id": user_id_lower}, {"$set": {"is_final": True}}
+    )
+
+    return {"ok": True}
+
+
 @app.post("/api/admin/login")
 async def admin_login(req: AdminPassRequest) -> dict[str, bool]:
     require_admin(req.adminPass)
@@ -395,6 +534,12 @@ async def admin_remove_nominator(req: RemoveNominatorRequest) -> dict[str, Any]:
 
     # Remove the nominator record
     await nominators_col.delete_one({"_id": roll_lower})
+
+    # Reset the draft so the user can re-nominate
+    await drafts_collection.update_one(
+        {"_id": roll_lower},
+        {"$set": {"is_final": False}},
+    )
 
     return {"ok": True, "reversed_picks": bool(dec)}
 

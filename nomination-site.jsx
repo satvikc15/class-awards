@@ -94,6 +94,8 @@ export default function NominationSite({ me, roster, rosterMap }) {
   const [inp, setInp] = useState("");
   const [busy, setBusy] = useState(false);
   const [enc, setEnc] = useState("");
+  const [hasDraft, setHasDraft] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (screen !== "done") return;
@@ -108,14 +110,59 @@ export default function NominationSite({ me, roster, rosterMap }) {
     setEnc(pick);
   }, [screen, name]);
 
-  /* Navigate forward (+1) or back (-1) */
+  /* Auto-load draft on mount */
+  useEffect(() => {
+    const roll = (me?.roll || "").trim();
+    if (!roll) return;
+    (async () => {
+      try {
+        const d = await apiPost("/api/nominations/draft/get", { user_id: roll });
+        if (d.is_final) {
+          setPicks(d.picks || {});
+          setScreen("submitted");
+        } else if (d.picks && Object.keys(d.picks).length > 0) {
+          setPicks(d.picks);
+          setHasDraft(true);
+        }
+      } catch { /* no draft yet, that's fine */ }
+    })();
+  }, [me?.roll]);
+
+  /* Save current picks as draft (fire-and-forget) */
+  const saveDraft = async (currentPicks) => {
+    const roll = (me?.roll || name || "").trim();
+    if (!roll) return;
+    setSaving(true);
+    try {
+      await apiPost("/api/nominations/draft/save", {
+        user_id: roll,
+        username: rosterMap?.get(String(roll)) || "",
+        email: me?.email || "",
+        picks: currentPicks,
+      });
+    } catch (e) {
+      // Draft already finalized — redirect to read-only view
+      if (e.message && e.message.includes("409")) {
+        try {
+          const d = await apiPost("/api/nominations/draft/get", { user_id: roll });
+          if (d.picks) setPicks(d.picks);
+        } catch { /* use current picks */ }
+        setScreen("submitted");
+      }
+    }
+    setSaving(false);
+  };
+
+  /* Navigate forward (+1) or back (-1), auto-saving draft */
   const navigate = (dir) => {
     const nextIdx = idx + dir;
     setDirection(dir);
     if (nextIdx >= 0 && nextIdx < CATEGORIES.length) {
       setInp("");
       setIdx(nextIdx);
+      saveDraft(picks);
     } else if (dir === 1) {
+      saveDraft(picks);
       setScreen("review");
     }
   };
@@ -125,16 +172,31 @@ export default function NominationSite({ me, roster, rosterMap }) {
     if (!n) { setNameErr("Missing roll number"); return; }
     setBusy(true);
     try {
-      const r = await apiGet(`/api/nominations/nominators/check?name=${encodeURIComponent(n)}`);
-      if (r.exists) {
-        setNameErr("You have already submitted nominations!");
+      // Fetch existing draft
+      const d = await apiPost("/api/nominations/draft/get", { user_id: n });
+      if (d.is_final) {
+        setPicks(d.picks || {});
+        setScreen("submitted");
         setBusy(false);
         return;
       }
-    } catch (e) {
-      setNameErr("Could not check submission status. Please try again.");
-      setBusy(false);
-      return;
+      if (d.picks && Object.keys(d.picks).length > 0) {
+        setPicks(d.picks);
+      }
+    } catch {
+      // Draft fetch failed — check old nominator status as fallback
+      try {
+        const r = await apiGet(`/api/nominations/nominators/check?name=${encodeURIComponent(n)}`);
+        if (r.exists) {
+          setNameErr("You have already submitted nominations!");
+          setBusy(false);
+          return;
+        }
+      } catch {
+        setNameErr("Could not check submission status. Please try again.");
+        setBusy(false);
+        return;
+      }
     }
     setBusy(false);
     setScreen("nominate");
@@ -143,13 +205,15 @@ export default function NominationSite({ me, roster, rosterMap }) {
   const handleSubmit = async () => {
     setBusy(true);
     try {
-      await apiPost("/api/nominations/submit", {
-        user_id: (me?.roll || name || "").trim(),
-        username: rosterMap?.get(String((me?.roll || name || "").trim())) || "",
+      // Save final draft then finalize
+      const roll = (me?.roll || name || "").trim();
+      await apiPost("/api/nominations/draft/save", {
+        user_id: roll,
+        username: rosterMap?.get(String(roll)) || "",
         email: me?.email || "",
         picks,
       });
-
+      await apiPost("/api/nominations/draft/finalize", { user_id: roll });
       setScreen("done");
     } catch {
       alert("Submission failed — please try again.");
@@ -174,9 +238,9 @@ export default function NominationSite({ me, roster, rosterMap }) {
           </p>
           {nameErr && <p className="err">{nameErr}</p>}
           <button className="btn-gold" onClick={handleStart} disabled={busy} style={{ marginTop: 12, width: "100%" }}>
-            {busy ? "Checking…" : "Start Nominating"}
+            {busy ? "Checking…" : hasDraft ? "Resume Nominating" : "Start Nominating"}
           </button>
-          <p className="hint">One submission per person · You can skip any question</p>
+          <p className="hint">{hasDraft ? "You have a saved draft — pick up where you left off" : "One submission per person · You can skip any question"}</p>
         </motion.div>
       </Shell>
     );
@@ -304,9 +368,10 @@ export default function NominationSite({ me, roster, rosterMap }) {
               </button>
             )}
             <button className="btn-gold" onClick={() => navigate(1)} style={{ flex: 2 }}>
-              {idx === CATEGORIES.length - 1 ? "Review →" : hasPick ? "Next →" : "Skip →"}
+              {idx === CATEGORIES.length - 1 ? "Save & Review →" : hasPick ? "Save & Next →" : "Skip →"}
             </button>
           </div>
+          {saving && <p className="hint" style={{ marginTop: 8, color: "rgba(255,255,255,.35)" }}>Saving draft…</p>}
           {!isMulti && picks[cat.id] && (
             <p className="hint" style={{ marginTop: 14 }}>
               Selected: <em>{selectedName ? `${selectedName} (${picks[cat.id]})` : picks[cat.id]}</em>
@@ -357,6 +422,36 @@ export default function NominationSite({ me, roster, rosterMap }) {
           >
             ← Edit nominations
           </button>
+        </motion.div>
+      </Shell>
+    );
+  }
+
+  /* ─── SUBMITTED (read-only view) ─── */
+  if (screen === "submitted") {
+    const count = Object.keys(picks).length;
+    return (
+      <Shell clearPhotos={clearPhotos}>
+        <style>{css}</style>
+        <motion.div style={{ maxWidth: 460, width: "100%" }} className="fade-in" {...CARD_MOTION}>
+          <div style={{ textAlign: "center", marginBottom: 24 }}>
+            <div className="mini-symbol" aria-hidden="true" />
+            <h2 className="title" style={{ marginTop: 8 }}>Your Nominations</h2>
+            <p className="sub">{count} / {CATEGORIES.length} nominated · <span style={{ color: "rgba(120,255,150,.7)", fontWeight: 600 }}>Submitted ✓</span></p>
+          </div>
+
+          <div className="scroll-list">
+            {CATEGORIES.map((cat) => (
+              <div key={cat.id} className="row-item">
+                <span style={{ fontSize: 18 }}>{cat.emoji}</span>
+                <span className="row-label">{cat.label}</span>
+                {picks[cat.id]
+                  ? <span className="row-val">{rosterMap?.get(String(picks[cat.id])) ? `${rosterMap.get(String(picks[cat.id]))} (${picks[cat.id]})` : picks[cat.id]}</span>
+                  : <span className="row-skip">skipped</span>}
+              </div>
+            ))}
+          </div>
+          <p className="hint" style={{ marginTop: 16 }}>Nominations are locked. Contact admin if you need to make changes.</p>
         </motion.div>
       </Shell>
     );
@@ -698,4 +793,94 @@ body { background: var(--bg); overflow: hidden; margin: 0; font-family: 'Space G
 
 @keyframes fadeInUp { from { opacity:0; transform: translateY(18px); } to { opacity:1; transform: translateY(0); } }
 .fade-in { animation: fadeInUp .35s ease both; }
+
+/* ── Responsive Design ── */
+@media (max-width: 768px) {
+  .background-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    padding: 24px;
+    inset: -30% 0;
+  }
+  .photo-card {
+    border-radius: 16px;
+    aspect-ratio: 0.8 / 1;
+  }
+  .content-wrapper {
+    padding: 16px;
+  }
+  .card {
+    padding: 28px 22px;
+    border-radius: 24px;
+    min-width: 0;
+    max-width: 100%;
+  }
+  .title {
+    font-size: 1.6rem;
+  }
+  .q-title {
+    font-size: 1.3rem;
+  }
+  .btn-gold, .btn-ghost {
+    padding: 12px 18px;
+    font-size: 14px;
+  }
+  .field {
+    padding: 12px 14px;
+    font-size: 14px;
+  }
+  .scroll-list {
+    max-height: 280px;
+  }
+  .badge {
+    font-size: 10px;
+    padding: 3px 10px;
+  }
+  .row-item {
+    padding: 8px 10px;
+    gap: 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  .background-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    padding: 16px;
+    inset: -40% 0;
+  }
+  .photo-card {
+    border-radius: 12px;
+  }
+  .content-wrapper {
+    padding: 12px;
+  }
+  .card {
+    padding: 22px 16px;
+    border-radius: 20px;
+  }
+  .title {
+    font-size: 1.35rem;
+  }
+  .q-title {
+    font-size: 1.15rem;
+  }
+  .sub {
+    font-size: 12px;
+  }
+  .btn-gold, .btn-ghost {
+    padding: 10px 14px;
+    font-size: 13px;
+    border-radius: 14px;
+  }
+  .scroll-list {
+    max-height: 240px;
+  }
+  .row-label {
+    font-size: 11px;
+  }
+  .row-val {
+    font-size: 12px;
+  }
+}
 `;

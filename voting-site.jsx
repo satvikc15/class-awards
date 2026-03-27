@@ -77,7 +77,7 @@ const getTop3 = (obj) =>
   Object.entries(obj || {}).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([n]) => n);
 
 /* ── Main component ──────────────────────────────────── */
-export default function VotingSite({ me, rosterMap }) {
+export default function VotingSite({ me, rosterMap, onLogout }) {
   const [initializing, setInitializing] = useState(true);
   const [phase, setPhase]           = useState("nominating"); // nominating | voting | results
   const [finalists, setFinalists]   = useState({});
@@ -309,11 +309,21 @@ export default function VotingSite({ me, rosterMap }) {
     return (
       <Shell><style>{css}</style>
         <div style={{ maxWidth: 560, width: "100%" }} className="fade-in">
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, flexWrap: "wrap", gap: 10 }}>
             <h1 className="title" style={{ fontSize: "1.6rem" }}>🎛️ Admin Panel</h1>
-            <span className={`phase-badge phase-${phase}`}>
-              {phase === "nominating" ? "Nominations Open" : phase === "voting" ? "Voting Open" : "Results Locked"}
-            </span>
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <span className={`phase-badge phase-${phase}`}>
+                {phase === "nominating" ? "Nominations Open" : phase === "voting" ? "Voting Open" : "Results Locked"}
+              </span>
+              {onLogout && (
+                <button
+                  className="btn-logout"
+                  onClick={onLogout}
+                >
+                  Logout
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Actions */}
@@ -691,6 +701,25 @@ body { background: var(--bg); overflow: hidden; margin: 0; font-family: 'Space G
   font-family: 'Space Grotesk', sans-serif; color: #f7f8ff;
 }
 
+.btn-logout {
+  cursor: pointer;
+  border: 1px solid rgba(255,255,255,.15);
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 12px;
+  font-family: 'Space Grotesk', sans-serif;
+  color: rgba(255,255,255,.6);
+  background: rgba(0,0,0,.3);
+  backdrop-filter: blur(10px);
+  transition: background .15s, color .15s, border-color .15s;
+}
+.btn-logout:hover {
+  background: rgba(255,80,80,.15);
+  border-color: rgba(255,80,80,.4);
+  color: rgba(255,120,120,.9);
+}
+
 .background-grid {
   position: absolute; inset: -20% 0;
   display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
@@ -832,6 +861,98 @@ body { background: var(--bg); overflow: hidden; margin: 0; font-family: 'Space G
 @keyframes gridScroll { 0% { transform: rotate(-0.8deg) scale(1.03) translateY(0); } 100% { transform: rotate(-0.8deg) scale(1.03) translateY(-10%); } }
 @keyframes fadeInUp { from { opacity:0; transform:translateY(18px); } to { opacity:1; transform:translateY(0); } }
 .fade-in { animation: fadeInUp .35s ease both; }
+
+/* ── Responsive Design ── */
+@media (max-width: 768px) {
+  .background-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    padding: 24px;
+    inset: -30% 0;
+  }
+  .photo-card {
+    border-radius: 16px;
+    aspect-ratio: 0.8 / 1;
+  }
+  .content-wrapper {
+    padding: 16px;
+  }
+  .card {
+    padding: 28px 22px;
+    border-radius: 24px;
+    min-width: 0;
+    max-width: 100%;
+  }
+  .title {
+    font-size: 1.6rem;
+  }
+  .q-title {
+    font-size: 1.3rem;
+  }
+  .btn-gold, .btn-ghost {
+    padding: 12px 18px;
+    font-size: 14px;
+  }
+  .field {
+    padding: 12px 14px;
+    font-size: 14px;
+  }
+  .nominee-btn {
+    padding: 12px 14px;
+    font-size: 14px;
+    gap: 10px;
+  }
+  .scroll-list {
+    max-height: 280px;
+  }
+  .admin-cat-row {
+    padding: 10px 12px;
+  }
+  .badge {
+    font-size: 10px;
+    padding: 3px 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  .background-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    padding: 16px;
+    inset: -40% 0;
+  }
+  .photo-card {
+    border-radius: 12px;
+  }
+  .content-wrapper {
+    padding: 12px;
+  }
+  .card {
+    padding: 22px 16px;
+    border-radius: 20px;
+  }
+  .title {
+    font-size: 1.35rem;
+  }
+  .q-title {
+    font-size: 1.15rem;
+  }
+  .sub {
+    font-size: 12px;
+  }
+  .btn-gold, .btn-ghost {
+    padding: 10px 14px;
+    font-size: 13px;
+    border-radius: 14px;
+  }
+  .scroll-list {
+    max-height: 240px;
+  }
+  .nom-chip {
+    font-size: 11px;
+    padding: 3px 8px;
+  }
+}
 `;
 
 
