@@ -5,6 +5,8 @@ import VotingSite from "./VotingSite.jsx";
 import { rosterToMap } from "./rosterStore.js";
 import { loadRoster } from "./roster.js";
 
+import { AnimatePresence, motion } from "framer-motion";
+
 const appStyles = `
   .app-topbar {
     position: fixed;
@@ -109,53 +111,75 @@ export default function App() {
     window.location.hash = tab === "vote" ? "#vote" : "#nominate";
   }, [tab]);
 
-  if (!me) {
-    return <Login onLogin={(info) => setMe(info)} />;
-  }
-
-  if (me.admin) {
-    return <VotingSite me={me} roster={roster} rosterMap={rosterMap} onLogout={() => setMe(null)} />;
-  }
-
   const handleLogout = () => setMe(null);
 
   return (
-    <div style={{ position: "fixed", inset: 0 }}>
-      <style>{appStyles}</style>
-      {/* Top bar: tabs + logout */}
-      <div className="app-topbar">
-        {tabs.map((t) => {
-          const isActive = tab === t.id;
-          return (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              className="app-topbar-btn"
-              style={{
-                color: isActive ? "#fff" : "rgba(255,255,255,.6)",
-                background: isActive ? "rgba(255,255,255,0.08)" : "transparent",
-                boxShadow: isActive ? "0 24px 60px rgba(0,0,0,.55)" : "none",
-              }}
-            >
-              {t.label}
+    <AnimatePresence mode="wait">
+      {!me ? (
+        <motion.div
+          key="login"
+          initial={{ opacity: 0, scale: 0.96 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.96 }}
+          transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+          style={{ position: "fixed", inset: 0 }}
+        >
+          <Login onLogin={(info) => setMe(info)} />
+        </motion.div>
+      ) : me.admin ? (
+        <motion.div
+          key="admin"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.5 }}
+          style={{ position: "fixed", inset: 0 }}
+        >
+          <VotingSite me={me} roster={roster} rosterMap={rosterMap} onLogout={() => setMe(null)} />
+        </motion.div>
+      ) : (
+        <motion.div
+          key="app"
+          initial={{ opacity: 0, scale: 1.04 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 1.04 }}
+          transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+          style={{ position: "fixed", inset: 0 }}
+        >
+          <div style={{ position: "fixed", inset: 0 }}>
+            <style>{appStyles}</style>
+            <div className="app-topbar">
+              {tabs.map((t) => {
+                const isActive = tab === t.id;
+                return (
+                  <button
+                    key={t.id}
+                    onClick={() => setTab(t.id)}
+                    className="app-topbar-btn"
+                    style={{
+                      color: isActive ? "#fff" : "rgba(255,255,255,.6)",
+                      background: isActive ? "rgba(255,255,255,0.08)" : "transparent",
+                      boxShadow: isActive ? "0 24px 60px rgba(0,0,0,.55)" : "none",
+                    }}
+                  >
+                    {t.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            <button className="app-logout-btn" onClick={handleLogout}>
+              Logout
             </button>
-          );
-        })}
-      </div>
 
-      {/* Logout button */}
-      <button
-        className="app-logout-btn"
-        onClick={handleLogout}
-      >
-        Logout
-      </button>
-
-      <div style={{ width: "100%", height: "100%" }}>
-        {tab === "nominate"
-          ? <NominationSite me={me} roster={roster} rosterMap={rosterMap} />
-          : <VotingSite me={me} roster={roster} rosterMap={rosterMap} />}
-      </div>
-    </div>
+            <div style={{ width: "100%", height: "100%" }}>
+              {tab === "nominate"
+                ? <NominationSite me={me} roster={roster} rosterMap={rosterMap} />
+                : <VotingSite me={me} roster={roster} rosterMap={rosterMap} />}
+            </div>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }

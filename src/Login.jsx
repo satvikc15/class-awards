@@ -5,7 +5,7 @@ const ROLL_RE = /^1005227290\d{2}$/;
 const ADMIN_ROLL = "1985";
 
 const CLASS_PHOTOS = [
-  "/cp1.jpeg", "/cp2.jpeg", "/cp3.jpeg", "/cp4.jpeg", "/cp5.jpeg", "/cp6.jpeg", "/cp7.jpeg"
+  "/cp1.jpeg", "/cp2.jpeg", "/cp3.jpeg", "/cp4.jpeg", "/cp5.jpeg", "/cp6.jpeg", "/cp7.jpeg", "/cp8.jpg", "/cp9.jpg"
 ];
 
 export default function Login({ onLogin }) {
@@ -130,15 +130,49 @@ export default function Login({ onLogin }) {
     setErr("");
   };
 
-  // Build two reel strips — each reel has photos repeated to create seamless loop
-  const reel1 = [...CLASS_PHOTOS, ...CLASS_PHOTOS, ...CLASS_PHOTOS, ...CLASS_PHOTOS];
-  const reel2 = [...CLASS_PHOTOS.slice(3), ...CLASS_PHOTOS, ...CLASS_PHOTOS, ...CLASS_PHOTOS.slice(0, 3), ...CLASS_PHOTOS];
+  // Build strips of repeating photos for smooth infinite scrolling
+  // We need exactly 2 identical sets per column so that translating by -50% creates a perfect loop
+  const c1 = [...CLASS_PHOTOS];
+  const c2 = [...CLASS_PHOTOS.slice(4), ...CLASS_PHOTOS.slice(0, 4)];
+  const c3 = [...CLASS_PHOTOS.slice(7), ...CLASS_PHOTOS.slice(0, 7)];
+  
+  const col1 = [...c1, ...c1];
+  const col2 = [...c2, ...c2];
+  const col3 = [...c3, ...c3];
 
   return (
     <div className="login-app-container">
       <style>{css}</style>
 
-      {/* LEFT: Form side */}
+      {/* LEFT: Angled Photo Cascade Side */}
+      <div className="login-photos-side">
+        <div className="login-reel-overlay" />
+        <div className="login-angled-scroll-wrapper">
+          <div className="login-photo-column">
+            <div className="login-photo-strip scroll-down-1">
+              {col1.map((photo, i) => (
+                <div key={`c1-${i}`} className="login-photo-img" style={{ backgroundImage: `url(${photo})` }} />
+              ))}
+            </div>
+          </div>
+          <div className="login-photo-column" style={{ marginTop: "-120px" }}>
+            <div className="login-photo-strip scroll-down-2">
+              {col2.map((photo, i) => (
+                <div key={`c2-${i}`} className="login-photo-img" style={{ backgroundImage: `url(${photo})` }} />
+              ))}
+            </div>
+          </div>
+          <div className="login-photo-column" style={{ marginTop: "-60px" }}>
+            <div className="login-photo-strip scroll-down-3">
+              {col3.map((photo, i) => (
+                <div key={`c3-${i}`} className="login-photo-img" style={{ backgroundImage: `url(${photo})` }} />
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* RIGHT: Form side */}
       <div className="login-form-side">
         <div className="login-ambient-glow login-glow-1" />
         <div className="login-ambient-glow login-glow-2" />
@@ -178,7 +212,6 @@ export default function Login({ onLogin }) {
           <div style={{ marginTop: 28 }}>
             {!otpStep ? (
               <>
-                {/* Roll number input */}
                 <div className="login-roll-wrap">
                   <span className="login-roll-prefix">{PREFIX}</span>
                   <input
@@ -236,7 +269,6 @@ export default function Login({ onLogin }) {
               </>
             ) : (
               <>
-                {/* OTP verification step */}
                 <div style={{ textAlign: "center", marginBottom: 16 }}>
                   <p style={{ color: "rgba(255,255,255,.5)", fontSize: 13 }}>
                     OTP sent to <strong style={{ color: "rgba(255,255,255,.85)" }}>{sentEmail}</strong>
@@ -296,41 +328,6 @@ export default function Login({ onLogin }) {
           </div>
         </div>
       </div>
-
-      {/* RIGHT: Film reel side */}
-      <div className="login-reel-side">
-        <div className="login-reel-overlay" />
-        <div className="login-reel-column reel-col-1">
-          <div className="login-reel-strip reel-scroll-down">
-            {reel1.map((photo, i) => (
-              <div key={`r1-${i}`} className="login-reel-frame">
-                <div className="login-reel-perfs">
-                  <span /><span /><span /><span />
-                </div>
-                <div className="login-reel-img" style={{ backgroundImage: `url(${photo})` }} />
-                <div className="login-reel-perfs">
-                  <span /><span /><span /><span />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className="login-reel-column reel-col-2">
-          <div className="login-reel-strip reel-scroll-up">
-            {reel2.map((photo, i) => (
-              <div key={`r2-${i}`} className="login-reel-frame">
-                <div className="login-reel-perfs">
-                  <span /><span /><span /><span />
-                </div>
-                <div className="login-reel-img" style={{ backgroundImage: `url(${photo})` }} />
-                <div className="login-reel-perfs">
-                  <span /><span /><span /><span />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
@@ -340,7 +337,6 @@ const css = `
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
-/* ── Main split layout ── */
 .login-app-container {
   position: relative;
   width: 100vw;
@@ -352,24 +348,106 @@ const css = `
   display: flex;
 }
 
-/* ── LEFT: Form side ── */
+/* ══════════════════════════════════════════════
+   LEFT: Angled Photo Cascade Side
+   ══════════════════════════════════════════════ */
+.login-photos-side {
+  position: relative;
+  flex: 1; /* Takes up left half */
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: #050810;
+  z-index: 1;
+}
+
+.login-reel-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  background:
+    linear-gradient(to right, rgba(3,7,18,0.95) 0%, transparent 20%, transparent 80%, rgba(3,7,18,0.85) 100%),
+    linear-gradient(to bottom, rgba(3,7,18,0.85) 0%, transparent 15%, transparent 85%, rgba(3,7,18,0.85) 100%);
+}
+
+.login-angled-scroll-wrapper {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 150vw;
+  height: 250vh;
+  margin-top: -125vh;
+  margin-left: -75vw;
+  display: flex;
+  gap: 24px;
+  justify-content: center;
+  align-items: center;
+  /* 20 degree rotation. */
+  transform: rotate(-20deg) scale(1.1);
+  transform-origin: center center;
+}
+
+.login-photo-column {
+  width: 220px;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+.login-photo-strip {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  will-change: transform;
+}
+
+.login-photo-img {
+  width: 100%;
+  aspect-ratio: 0.75 / 1;
+  background-size: cover;
+  background-position: center;
+  border-radius: 20px;
+  box-shadow: 0 16px 40px rgba(0,0,0,0.6);
+  filter: brightness(0.85) saturate(1.1) contrast(1.05);
+  transition: filter 0.4s;
+}
+
+/* Scroll keyframes slowed down */
+.scroll-down-1 { animation: cascadeDown 70s linear infinite; }
+.scroll-down-2 { animation: cascadeDown 55s linear infinite; }
+.scroll-down-3 { animation: cascadeDown 85s linear infinite; }
+
+@keyframes cascadeDown {
+  0%   { transform: translateY(-50%); }
+  100% { transform: translateY(0%); }
+}
+
+/* ══════════════════════════════════════════════
+   RIGHT: Form side
+   ══════════════════════════════════════════════ */
 .login-form-side {
   position: relative;
-  flex: 1;
-  min-width: 0;
+  width: 500px;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 40px;
   z-index: 2;
   background: #030712;
+  border-left: 1px solid rgba(255,255,255,0.05);
+  box-shadow: -20px 0 50px rgba(0,0,0,0.5);
 }
 
 .login-ambient-glow {
   position: absolute;
   border-radius: 50%;
   filter: blur(120px);
-  opacity: 0.1;
+  opacity: 0.12;
   pointer-events: none;
   z-index: 0;
 }
@@ -379,12 +457,11 @@ const css = `
 /* ── Card ── */
 .login-card {
   position: relative;
-  z-index: 1;
+  z-index: 10;
   background: rgba(9, 12, 18, 0.92);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 32px;
-  padding: 42px 46px;
-  max-width: 480px;
+  padding: 42px 40px;
   width: 100%;
   backdrop-filter: blur(24px);
   box-shadow: 0 40px 120px rgba(0,0,0,0.65);
@@ -393,7 +470,7 @@ const css = `
 
 .login-title {
   font-family: 'Space Grotesk', sans-serif;
-  font-size: 2.3rem;
+  font-size: 2.2rem;
   font-weight: 600;
   text-align: center;
   letter-spacing: 0.04em;
@@ -403,7 +480,7 @@ const css = `
 .login-sub {
   text-align: center;
   color: rgba(255,255,255,0.55);
-  font-size: 14px;
+  font-size: 13px;
   margin-top: 8px;
   line-height: 1.4;
 }
@@ -486,7 +563,7 @@ const css = `
   border-radius: 16px;
   background: rgba(255,255,255,0.04);
   color: #f7f8ff;
-  font-size: 32px;
+  font-size: 30px;
   font-weight: 900;
   letter-spacing: 0.5em;
   text-align: center;
@@ -530,103 +607,6 @@ const css = `
 .login-btn-ghost:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.2); }
 .login-btn-ghost:disabled { opacity: .45; cursor: default; }
 
-/* ══════════════════════════════════════════════
-   RIGHT: Film Reel Side
-   ══════════════════════════════════════════════ */
-.login-reel-side {
-  position: relative;
-  width: 420px;
-  flex-shrink: 0;
-  display: flex;
-  gap: 0;
-  overflow: hidden;
-  background: #0a0e17;
-}
-
-/* Subtle gradient overlay so reel edges blend into dark bg */
-.login-reel-overlay {
-  position: absolute;
-  inset: 0;
-  z-index: 3;
-  pointer-events: none;
-  background:
-    linear-gradient(to right, rgba(3,7,18,0.95) 0%, transparent 15%, transparent 85%, rgba(3,7,18,0.6) 100%),
-    linear-gradient(to bottom, rgba(3,7,18,0.7) 0%, transparent 8%, transparent 92%, rgba(3,7,18,0.7) 100%);
-}
-
-.login-reel-column {
-  flex: 1;
-  position: relative;
-  overflow: hidden;
-  background: #08090e;
-}
-
-/* The continuously scrolling strip */
-.login-reel-strip {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  will-change: transform;
-}
-
-.reel-scroll-down {
-  animation: reelDown 35s linear infinite;
-}
-.reel-scroll-up {
-  animation: reelUp 40s linear infinite;
-}
-
-/* Each frame: perforations | image | perforations */
-.login-reel-frame {
-  display: flex;
-  align-items: stretch;
-  padding: 3px 0;
-  background: #0c0e14;
-  border-bottom: 2px solid #111318;
-}
-
-/* Film strip perforation holes */
-.login-reel-perfs {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-evenly;
-  align-items: center;
-  width: 18px;
-  flex-shrink: 0;
-  padding: 6px 0;
-}
-.login-reel-perfs span {
-  display: block;
-  width: 8px;
-  height: 8px;
-  border-radius: 2px;
-  background: #1a1d26;
-  border: 1px solid #22252f;
-}
-
-/* The actual photo */
-.login-reel-img {
-  flex: 1;
-  min-height: 180px;
-  background-size: cover;
-  background-position: center;
-  border-radius: 4px;
-  margin: 2px 0;
-  filter: brightness(0.85) saturate(1.1) contrast(1.05);
-  transition: filter 0.4s;
-}
-
-/* ── Reel scroll keyframes ── */
-@keyframes reelDown {
-  0%   { transform: translateY(0); }
-  100% { transform: translateY(-50%); }
-}
-
-@keyframes reelUp {
-  0%   { transform: translateY(-50%); }
-  100% { transform: translateY(0); }
-}
-
 /* ── Animations ── */
 @keyframes fadeInUp { from { opacity:0; transform: translateY(18px); } to { opacity:1; transform: translateY(0); } }
 .fade-in { animation: fadeInUp .45s ease both; }
@@ -635,113 +615,44 @@ const css = `
    Responsive
    ══════════════════════════════════════════════ */
 @media (max-width: 1024px) {
-  .login-reel-side {
-    width: 320px;
-  }
-  .login-reel-img {
-    min-height: 150px;
-  }
+  .login-form-side { width: 420px; border-left: none; }
+  .login-card { padding: 36px 30px; }
+  .login-angled-scroll-wrapper { transform: rotate(-20deg) scale(1.3); }
 }
 
 @media (max-width: 768px) {
   .login-app-container {
     flex-direction: column;
   }
-  .login-form-side {
-    padding: 24px 20px;
-    flex: 1;
-  }
-  .login-reel-side {
+  .login-photos-side {
+    position: absolute;
+    inset: 0;
     width: 100%;
-    height: 180px;
-    flex-direction: row;
-    order: -1;
+    height: 100%;
   }
-  .login-reel-column {
+  .login-form-side {
     flex: 1;
+    width: 100%;
+    background: transparent;
+    border-left: none;
+    box-shadow: none;
+    padding: 20px;
   }
-  .login-reel-strip {
-    flex-direction: column;
-  }
-  .login-reel-img {
-    min-height: 140px;
-  }
+  /* Scale up heavily so edges don't show when running fullscreen */
+  .login-angled-scroll-wrapper { transform: rotate(-20deg) scale(1.6); }
+  
   .login-reel-overlay {
-    background:
-      linear-gradient(to bottom, rgba(3,7,18,0.3) 0%, transparent 20%, transparent 70%, rgba(3,7,18,0.95) 100%),
-      linear-gradient(to right, rgba(3,7,18,0.5) 0%, transparent 10%, transparent 90%, rgba(3,7,18,0.5) 100%);
-  }
-  .login-card {
-    padding: 28px 22px;
-    border-radius: 24px;
-    max-width: 100%;
-  }
-  .login-title {
-    font-size: 1.7rem;
-  }
-  .login-btn-primary {
-    padding: 12px 18px;
-    font-size: 14px;
-  }
-  .login-btn-ghost {
-    padding: 11px 14px;
-    font-size: 13px;
-  }
-  .login-otp-input {
-    width: 180px;
-    padding: 14px 18px;
-    font-size: 26px;
-    letter-spacing: 0.4em;
+    background: radial-gradient(circle at 50% 50%, rgba(3,7,18,0.75) 0%, rgba(3,7,18,0.88) 60%, rgba(3,7,18,0.98) 100%);
   }
 }
 
 @media (max-width: 480px) {
-  .login-reel-side {
-    height: 140px;
-  }
-  .login-reel-img {
-    min-height: 110px;
-  }
-  .login-form-side {
-    padding: 16px 14px;
-  }
-  .login-card {
-    padding: 22px 16px;
-    border-radius: 20px;
-  }
-  .login-title {
-    font-size: 1.4rem;
-  }
-  .login-sub {
-    font-size: 12px;
-  }
-  .login-roll-prefix {
-    padding: 12px 10px;
-    font-size: 12px;
-  }
-  .login-roll-xx {
-    padding: 12px 10px;
-    font-size: 16px;
-  }
-  .login-btn-primary {
-    padding: 10px 14px;
-    font-size: 13px;
-    border-radius: 14px;
-  }
-  .login-btn-ghost {
-    padding: 10px 12px;
-    font-size: 12px;
-    border-radius: 14px;
-  }
-  .login-otp-input {
-    width: 160px;
-    padding: 12px 14px;
-    font-size: 22px;
-    letter-spacing: 0.35em;
-  }
-  .login-field {
-    padding: 12px 14px;
-    font-size: 14px;
-  }
+  .login-card { padding: 26px 20px; border-radius: 20px; }
+  .login-title { font-size: 1.6rem; }
+  .login-sub { font-size: 12px; }
+  .login-roll-prefix { padding: 12px 10px; font-size: 12px; }
+  .login-roll-xx { padding: 12px 10px; font-size: 16px; }
+  .login-btn-primary { padding: 12px 14px; font-size: 13px; border-radius: 14px; }
+  .login-otp-input { width: 170px; font-size: 24px; padding: 12px; }
 }
 `;
