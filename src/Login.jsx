@@ -386,7 +386,7 @@ const css = `
   justify-content: center;
   align-items: center;
   /* 20 degree rotation. */
-  transform: rotate(-20deg) scale(1.1);
+  transform: rotate(-5deg) scale(1.1);
   transform-origin: center center;
 }
 
@@ -617,7 +617,7 @@ const css = `
 @media (max-width: 1024px) {
   .login-form-side { width: 420px; border-left: none; }
   .login-card { padding: 36px 30px; }
-  .login-angled-scroll-wrapper { transform: rotate(-20deg) scale(1.3); }
+  .login-angled-scroll-wrapper { transform: rotate(-5deg) scale(1.3); }
 }
 
 @media (max-width: 768px) {
@@ -639,7 +639,7 @@ const css = `
     padding: 20px;
   }
   /* Scale up heavily so edges don't show when running fullscreen */
-  .login-angled-scroll-wrapper { transform: rotate(-20deg) scale(1.6); }
+  .login-angled-scroll-wrapper { transform: rotate(-5deg) scale(1.6); }
   
   .login-reel-overlay {
     background: radial-gradient(circle at 50% 50%, rgba(3,7,18,0.75) 0%, rgba(3,7,18,0.88) 60%, rgba(3,7,18,0.98) 100%);
