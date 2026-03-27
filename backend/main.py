@@ -130,31 +130,46 @@ def generate_otp() -> str:
 def send_otp_email_sync(to_email: str, otp_code: str) -> None:
     """Send OTP email via SMTP. This is a blocking call."""
     if not settings.smtp_user or not settings.smtp_pass:
-        raise HTTPException(status_code=500, detail="SMTP not configured")
+        raise HTTPException(status_code=500, detail="SMTP not configured (missing user or pass)")
 
     msg = MIMEMultipart("alternative")
     msg["Subject"] = f"Class Awards — Your verification code is {otp_code}"
-    msg["From"] = settings.smtp_from or settings.smtp_user
+    # Use From address if provided, otherwise fallback to smtp_user
+    sender = settings.smtp_from or settings.smtp_user
+    msg["From"] = sender
     msg["To"] = to_email
 
     html = f"""\
-    <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px;">
-      <h2 style="color: #f5c842; text-align: center;">🏆 Class Awards</h2>
+    <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px; border: 1px solid #eee; border-radius: 16px;">
+      <h2 style="color: #f5c842; text-align: center; margin-bottom: 24px;">🏆 Class Awards</h2>
       <p style="text-align: center; color: #333; font-size: 16px;">Your verification code is:</p>
-      <div style="text-align: center; font-size: 36px; font-weight: 900; letter-spacing: 0.3em;
-                  color: #1a1000; background: linear-gradient(135deg, #f5c842, #e8a800);
-                  padding: 18px 32px; border-radius: 14px; margin: 16px auto; display: inline-block;">
+      <div style="text-align: center; font-size: 38px; font-weight: 900; letter-spacing: 0.2em;
+                  color: #1a1000; background: #fef9e7; border: 2px solid #f5c842;
+                  padding: 20px 32px; border-radius: 14px; margin: 24px auto; display: inline-block;">
         {otp_code}
       </div>
-      <p style="text-align: center; color: #888; font-size: 13px;">This code expires in 5 minutes.<br/>If you did not request this, ignore this email.</p>
+      <p style="text-align: center; color: #777; font-size: 13px; line-height: 1.5; margin-top: 24px;">
+        This code expires in 5 minutes.<br/>
+        If you did not request this, you can safely ignore this email.
+      </p>
     </div>
     """
     msg.attach(MIMEText(html, "html"))
 
-    with smtplib.SMTP(settings.smtp_host, settings.smtp_port) as server:
-        server.starttls()
-        server.login(settings.smtp_user, settings.smtp_pass)
-        server.sendmail(msg["From"], to_email, msg.as_string())
+    try:
+        # Port 465 is for SSL from the start; 587 is for STARTTLS
+        if settings.smtp_port == 465:
+            with smtplib.SMTP_SSL(settings.smtp_host, settings.smtp_port, timeout=15) as server:
+                server.login(settings.smtp_user, settings.smtp_pass)
+                server.sendmail(sender, to_email, msg.as_string())
+        else:
+            with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=15) as server:
+                server.starttls()
+                server.login(settings.smtp_user, settings.smtp_pass)
+                server.sendmail(sender, to_email, msg.as_string())
+    except Exception as e:
+        print(f"CRITICAL: SMTP Error: {str(e)}")
+        raise e
 
 
 @app.post("/api/otp/send")

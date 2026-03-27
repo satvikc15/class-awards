@@ -12,3 +12,4 @@ classenv/
 .venv/
 venv/
 
+cloudflared.exe
