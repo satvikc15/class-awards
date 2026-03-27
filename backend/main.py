@@ -127,8 +127,8 @@ def generate_otp() -> str:
     return "{:06d}".format(random.randint(0, 999999))
 
 
-def send_otp_email(to_email: str, otp_code: str) -> None:
-    """Send OTP email via SMTP."""
+def send_otp_email_sync(to_email: str, otp_code: str) -> None:
+    """Send OTP email via SMTP. This is a blocking call."""
     if not settings.smtp_user or not settings.smtp_pass:
         raise HTTPException(status_code=500, detail="SMTP not configured")
 
@@ -190,9 +190,10 @@ async def send_otp(req: SendOtpRequest) -> dict[str, Any]:
         upsert=True,
     )
 
-    # Send the email
+    # Send the email asynchronously without blocking the event loop
     try:
-        send_otp_email(email, otp_code)
+        import asyncio
+        await asyncio.to_thread(send_otp_email_sync, email, otp_code)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to send email: {str(e)}")
 
