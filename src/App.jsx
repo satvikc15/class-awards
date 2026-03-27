@@ -29,6 +29,10 @@ export default function App() {
     return <Login onLogin={(info) => setMe(info)} />;
   }
 
+  if (me.admin) {
+    return <VotingSite me={me} roster={roster} rosterMap={rosterMap} />;
+  }
+
   return (
     <div style={{ position: "fixed", inset: 0 }}>
       <div

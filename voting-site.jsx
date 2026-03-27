@@ -23,31 +23,37 @@ const CATEGORIES = [
   { id: "16", emoji: "💻", label: "Best Programmer", gender: null },
   { id: "17", emoji: "🎮", label: "Would Rage-Quit Real Life for Gaming (Best ProGamer)", gender: null },
   { id: "18", emoji: "🏛️", label: "Future Minister", gender: null },
-  { id: "19", emoji: "📱", label: "Phone is Basically a Body Part", gender: null },
-  { id: "20", emoji: "🎓", label: "The professor of the class", gender: null },
-  { id: "21", emoji: "🏅", label: "Built Different — Best Athlete", gender: null },
-  { id: "22", emoji: "🏏", label: "Best cricketer", gender: null },
-  { id: "23", emoji: "🎤", label: "Best singer", gender: null },
-  { id: "24", emoji: "💃", label: "Best Dancer", gender: null },
-  { id: "25", emoji: "🎙️", label: "Best Speaker", gender: null },
-  { id: "26", emoji: "😈", label: "Most Notorious", gender: null },
-  { id: "27", emoji: "💛", label: "Walking Green Flag", gender: null },
-  { id: "28", emoji: "🍬", label: "Sweetest Person", gender: null },
-  { id: "29", emoji: "👂", label: "Free Therapist (No Appointment Needed)", gender: null },
-  { id: "30", emoji: "👗", label: "Best Dressing Sense", gender: null },
-  { id: "31", emoji: "☮️", label: "UN Ambassador of the Classroom (Conflict Resolver)", gender: null },
-  { id: "32", emoji: "✏️", label: "Sharpest Eyeliner in the Room (girls)", gender: "F" },
-  { id: "33", emoji: "👜", label: "Accessory Queen — Always Dripping in Jewelry (girls)", gender: "F" },
-  { id: "34", emoji: "💪", label: "Girl Boss Energy — Future Glass Ceiling Smasher (girls)", gender: "F" },
-  { id: "35", emoji: "🎬", label: "The Best Trio", gender: null, slots: 3 },
-  { id: "36", emoji: "🔄", label: "Most likely to switch careers", gender: null },
-  { id: "37", emoji: "📅", label: "Never misses a day (The one with the perfect attendance)", gender: null },
-  { id: "38", emoji: "😂", label: "Most Humorous", gender: null },
-  { id: "39", emoji: "📚", label: "That one friend you call for exam material", gender: null },
-  { id: "40", emoji: "📞", label: "That one person who is always on a call", gender: null },
-  { id: "41", emoji: "💼", label: "The entrepreneur", gender: null },
-  { id: "42", emoji: "🍳", label: "That one friend who cooks like a chef", gender: null },
-  { id: "43", emoji: "🎉", label: "Event Planner (That person who is the first when conducting an event)", gender: null },
+  { id: "19", emoji: "🎓", label: "The professor of the class", gender: null },
+  { id: "20", emoji: "🏅", label: "Built Different — Best Athlete", gender: null },
+  { id: "21", emoji: "🏏", label: "Best cricketer", gender: null },
+  { id: "22", emoji: "🎤", label: "Best singer", gender: null },
+  { id: "23", emoji: "💃", label: "Best Dancer", gender: null },
+  { id: "24", emoji: "🎙️", label: "Best Speaker", gender: null },
+  { id: "25", emoji: "😈", label: "Most Notorious", gender: null },
+  { id: "26", emoji: "💛", label: "Walking Green Flag", gender: null },
+  { id: "27", emoji: "🍬", label: "Sweetest Person", gender: null },
+  { id: "28", emoji: "👂", label: "Free Therapist (No Appointment Needed)", gender: null },
+  { id: "29", emoji: "👗", label: "Best Dressing Sense", gender: null },
+  { id: "30", emoji: "☮️", label: "UN Ambassador of the Classroom (Conflict Resolver)", gender: null },
+  { id: "31", emoji: "✏️", label: "Sharpest Eyeliner in the Room (girls)", gender: "F" },
+  { id: "32", emoji: "👜", label: "Accessory Queen — Always Dripping in Jewelry (girls)", gender: "F" },
+  { id: "33", emoji: "💪", label: "Girl Boss Energy — Future Glass Ceiling Smasher (girls)", gender: "F" },
+  { id: "34", emoji: "🎬", label: "The Best Trio", gender: null, slots: 3 },
+  { id: "35", emoji: "🔄", label: "Most likely to switch careers", gender: null },
+  { id: "36", emoji: "📅", label: "Never misses a day (The one with the perfect attendance)", gender: null },
+  { id: "37", emoji: "😂", label: "Most Humorous", gender: null },
+  { id: "38", emoji: "📚", label: "That one friend you call for exam material", gender: null },
+  { id: "39", emoji: "📞", label: "That one person who is always on a call", gender: null },
+  { id: "40", emoji: "💼", label: "The entrepreneur", gender: null },
+  { id: "41", emoji: "🍳", label: "That one friend who cooks like a chef", gender: null },
+  { id: "42", emoji: "🍿", label: "Professional Snacker (Always has food)", gender: null },
+  { id: "43", emoji: "😆", label: "The Most Contagious Laugh", gender: null },
+  { id: "44", emoji: "📸", label: "The Unofficial Group Photographer", gender: null },
+  { id: "45", emoji: "🎵", label: "Aux Cord King/Queen (Best taste in music)", gender: null },
+  { id: "46", emoji: "🗺️", label: "Human GPS (Never gets lost)", gender: null },
+  { id: "47", emoji: "✍️", label: "Nicest Handwriting", gender: null },
+  { id: "48", emoji: "🦉", label: "The Night Owl (Productive at 3 AM)", gender: null },
+  { id: "49", emoji: "🤝", label: "The Networking Ninja (Knows everyone in the building)", gender: null },
 ];
 
 const apiGet = async (path) => {
@@ -90,6 +96,11 @@ export default function VotingSite({ me, rosterMap }) {
   const [busy, setBusy]               = useState(false);
   const [enc, setEnc]                 = useState("");
   const [voteFilter, setVoteFilter]   = useState("");
+  const [removeRoll, setRemoveRoll]   = useState("");
+  const [removeMsg, setRemoveMsg]     = useState("");
+  const [removeErr, setRemoveErr]     = useState("");
+  const [adminNominators, setAdminNominators] = useState([]);
+  const [expandedRoll, setExpandedRoll] = useState(null);
 
   useEffect(() => { init(); }, []);
   useEffect(() => {
@@ -105,6 +116,9 @@ export default function VotingSite({ me, rosterMap }) {
         setNominations(s.nominations || {});
         setFinalists(s.finalists || {});
         setAllVotes(s.votes || {});
+
+        const nr = await apiPost("/api/admin/nominators", { adminPass: me.adminPass });
+        setAdminNominators(nr.nominators || []);
       } catch {}
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -180,6 +194,35 @@ export default function VotingSite({ me, rosterMap }) {
     } catch {}
   };
 
+  const removeNominator = async (targetRoll) => {
+    const r = (targetRoll || removeRoll).trim();
+    if (!r) { setRemoveErr("Enter a roll number"); return; }
+    setRemoveErr(""); setRemoveMsg("");
+    setBusy(true);
+    try {
+      const res = await apiPost("/api/admin/remove-nominator", { adminPass, roll: r });
+      if (!targetRoll) setRemoveMsg(`✅ Removed ${r}. ${res.reversed_picks ? "Nomination counts reversed." : "No stored picks to reverse."}`);
+      else alert(`✅ Removed ${r}. ${res.reversed_picks ? "Nomination counts reversed." : "No stored picks to reverse."}`);
+      setRemoveRoll("");
+      // Refresh admin state
+      try {
+        const s = await apiPost("/api/admin/state", { adminPass });
+        setPhase(s.phase || "nominating");
+        setNominations(s.nominations || {});
+        setFinalists(s.finalists || {});
+        setAllVotes(s.votes || {});
+        
+        const nr = await apiPost("/api/admin/nominators", { adminPass });
+        setAdminNominators(nr.nominators || []);
+      } catch {}
+    } catch (e) {
+      let msg = "Failed to remove nominator.";
+      try { msg = JSON.parse(e.message).detail || msg; } catch { msg = e.message || msg; }
+      setRemoveErr(msg);
+    }
+    setBusy(false);
+  };
+
   /* ── STUDENT VOTING ── */
   const handleStudentStart = async () => {
     const n = studentName.trim();
@@ -233,7 +276,7 @@ export default function VotingSite({ me, rosterMap }) {
 
   /* ─ HUB ─ */
   if (mode === "hub") return (
-    <Shell><style>{css}</style>
+    <Shell clearPhotos><style>{css}</style>
       <div className="card fade-in" style={{ maxWidth: 420, textAlign: "center" }}>
         <div style={{ fontSize: 64 }}>🏆</div>
         <h1 className="title">Class Awards</h1>
@@ -276,7 +319,7 @@ export default function VotingSite({ me, rosterMap }) {
           {/* Actions */}
           <div className="card" style={{ marginBottom: 16 }}>
             <p style={{ color: "rgba(255,255,255,.6)", fontSize: 13, marginBottom: 14 }}>
-              Phase controls · current phase: <strong style={{ color: "#f5c842" }}>{phase}</strong>
+              Phase controls · current phase: <strong style={{ color: "rgba(255,255,255,.85)" }}>{phase}</strong>
             </p>
             {phase === "nominating" && (
               <button className="btn-gold" onClick={finalizeNominations} disabled={busy} style={{ width: "100%" }}>
@@ -299,6 +342,106 @@ export default function VotingSite({ me, rosterMap }) {
               </button>
             )}
           </div>
+
+          {/* Remove Nominator Manual Input */}
+          {phase === "nominating" && (
+            <div className="card" style={{ marginBottom: 16 }}>
+              <p style={{ color: "rgba(255,255,255,.6)", fontSize: 13, marginBottom: 10 }}>
+                🗑️ Remove a nominator so they can re-submit
+              </p>
+              <div style={{ display: "flex", gap: 8 }}>
+                <input
+                  className="field"
+                  placeholder="Roll number (e.g. 100522729001)"
+                  value={removeRoll}
+                  onChange={(e) => { setRemoveRoll(e.target.value); setRemoveErr(""); setRemoveMsg(""); }}
+                  onKeyDown={(e) => e.key === "Enter" && removeNominator()}
+                  style={{ flex: 1 }}
+                />
+                <button
+                  className="btn-gold"
+                  onClick={() => removeNominator()}
+                  disabled={busy || !removeRoll.trim()}
+                  style={{ whiteSpace: "nowrap" }}
+                >
+                  {busy ? "…" : "🗑️ Remove"}
+                </button>
+              </div>
+              {removeErr && <p className="err" style={{ textAlign: "left" }}>{removeErr}</p>}
+              {removeMsg && <p style={{ color: "rgba(120,255,150,0.8)", fontSize: 13, marginTop: 6 }}>{removeMsg}</p>}
+            </div>
+          )}
+
+          {/* Detailed Nominator List */}
+          {phase === "nominating" && adminNominators.length > 0 && (
+            <div style={{ marginBottom: 24 }}>
+              <h2 style={{ fontSize: 16, marginBottom: 12, color: "rgba(255,255,255,.85)" }}>Registered Nominators ({adminNominators.length})</h2>
+              <div className="scroll-list" style={{ maxHeight: 380, display: "flex", flexDirection: "column", gap: 10 }}>
+                {adminNominators.map((nom) => {
+                  const isExpanded = expandedRoll === nom.roll;
+                  return (
+                    <div key={nom.roll} className="admin-cat-row" style={{ padding: "14px 18px", cursor: "pointer", transition: "background 0.2s" }} onClick={() => setExpandedRoll(isExpanded ? null : nom.roll)}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <div>
+                          <p style={{ fontWeight: 600, color: "#fff", fontSize: 15 }}>
+                            {nom.username || "Unknown"} <span style={{ color: "rgba(255,255,255,.45)", fontWeight: 400 }}>({nom.roll})</span>
+                          </p>
+                          {nom.email && <p style={{ fontSize: 12, color: "rgba(255,255,255,.4)", marginTop: 2 }}>{nom.email}</p>}
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                          {isExpanded && (
+                            <button
+                              className="btn-ghost"
+                              style={{ padding: "6px 12px", fontSize: 12, borderColor: "rgba(255, 119, 143, 0.4)", color: "rgba(255, 119, 143, 0.9)" }}
+                              onClick={(e) => { e.stopPropagation(); removeNominator(nom.roll); }}
+                              disabled={busy}
+                            >
+                              Delete
+                            </button>
+                          )}
+                          <span style={{ color: "rgba(255,255,255,.3)", fontSize: 18, transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }}>
+                            ▼
+                          </span>
+                        </div>
+                      </div>
+                      
+                      {isExpanded && (
+                        <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid rgba(255,255,255,.06)" }}>
+                          <p style={{ fontSize: 12, color: "rgba(255,255,255,.5)", marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.05em" }}>Categories picked</p>
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 8 }}>
+                            {CATEGORIES.map(cat => {
+                              const pickedValue = nom.picks[cat.id];
+                              if (!pickedValue) return null; // Skip empty picks
+                              
+                              // Handle multi-pick (pipe separated)
+                              const parts = pickedValue.split("|").filter(Boolean);
+                              
+                              return (
+                                <div key={cat.id} style={{ display: "flex", fontSize: 13, background: "rgba(255,255,255,.02)", padding: "6px 10px", borderRadius: 8 }}>
+                                  <span style={{ width: 24 }}>{cat.emoji}</span>
+                                  <div style={{ flex: 1 }}>
+                                    <span style={{ color: "rgba(255,255,255,.55)", display: "block", marginBottom: 2 }}>{cat.label}</span>
+                                    {parts.map((p, idx) => (
+                                      <span key={idx} style={{ color: "rgba(255,255,255,.9)", display: "block" }}>
+                                        • {rosterMap?.get(String(p)) ? `${rosterMap.get(String(p))} (${p})` : p}
+                                      </span>
+                                    ))}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                            {Object.keys(nom.picks || {}).length === 0 && (
+                              <p style={{ fontSize: 13, color: "rgba(255,255,255,.4)", fontStyle: "italic" }}>No specific picks stored for this nominator.</p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Per-category nominees & vote counts */}
           <div className="scroll-list" style={{ maxHeight: 480 }}>
@@ -354,7 +497,7 @@ export default function VotingSite({ me, rosterMap }) {
         <p className="sub">
           Vote for the finalists in each category<br />
           <span style={{ color: "rgba(255,255,255,.35)" }}>Logged in as</span>{" "}
-          <span style={{ color: "#f5c842", fontWeight: 800 }}>{me?.roll}</span>
+          <span style={{ color: "rgba(255,255,255,.85)", fontWeight: 800 }}>{me?.roll}</span>
         </p>
         {nameErr && <p className="err">{nameErr}</p>}
         <button className="btn-gold" onClick={handleStudentStart} disabled={busy} style={{ width: "100%", marginTop: 18 }}>
@@ -450,12 +593,12 @@ export default function VotingSite({ me, rosterMap }) {
 
   /* ─ VOTED ─ */
   if (mode === "voted") return (
-    <Shell><style>{css}</style>
+    <Shell clearPhotos><style>{css}</style>
       <div className="card fade-in" style={{ maxWidth: 420, textAlign: "center" }}>
         <div style={{ fontSize: 72 }}>🎊</div>
         <h2 className="title" style={{ marginTop: 12 }}>Votes Submitted!</h2>
         <p className="sub" style={{ marginTop: 8 }}>
-          Thank you, <span style={{ color: "#f5c842", fontWeight: 600 }}>{studentName}</span>!<br />
+          Thank you, <span style={{ color: "rgba(255,255,255,.85)", fontWeight: 600 }}>{studentName}</span>!<br />
           {enc || "Results will be announced soon. Stay tuned!"}
         </p>
         <div className="sparkles" aria-hidden="true" />
@@ -465,7 +608,7 @@ export default function VotingSite({ me, rosterMap }) {
 
   /* ─ PUBLIC RESULTS ─ */
   if (mode === "results") return (
-    <Shell><style>{css}</style>
+    <Shell clearPhotos><style>{css}</style>
       <div style={{ maxWidth: 540, width: "100%" }} className="fade-in">
         <div style={{ textAlign: "center", marginBottom: 24 }}>
           <div style={{ fontSize: 56 }}>🏅</div>
@@ -506,18 +649,18 @@ export default function VotingSite({ me, rosterMap }) {
 }
 
 /* ─── SHELL ─── */
-function Shell({ children }) {
+function Shell({ children, clearPhotos = false }) {
   const backgroundTiles = Array.from({ length: 12 }, (_, i) => CLASS_PHOTOS[i % CLASS_PHOTOS.length]);
 
   return (
     <div className="app-container">
       <style>{css}</style>
-      <div className="background-grid">
+      <div className={`background-grid ${clearPhotos ? "bg-clear" : "bg-dimmed"}`}>
         {backgroundTiles.map((photo, index) => (
           <div key={index} className="photo-card" style={{ backgroundImage: `url(${photo})` }} />
         ))}
       </div>
-      <div className="overlay-gradient" />
+      <div className={`overlay-gradient ${clearPhotos ? "overlay-clear" : "overlay-dimmed"}`} />
       <div className="content-wrapper">
         <div className="ambient-glow glow-1" />
         <div className="ambient-glow glow-2" />
@@ -555,6 +698,7 @@ body { background: var(--bg); overflow: hidden; margin: 0; font-family: 'Space G
   transform: rotate(-0.8deg) scale(1.03);
   z-index: 0; pointer-events: none;
   animation: gridScroll 60s linear infinite;
+  transition: opacity 0.6s ease;
 }
 
 .photo-card {
@@ -562,16 +706,24 @@ body { background: var(--bg); overflow: hidden; margin: 0; font-family: 'Space G
   background-size: cover; background-position: center;
   border-radius: 26px; box-shadow: 0 25px 60px rgba(0,0,0,0.65);
   border: 1px solid rgba(255,255,255,0.06);
-  opacity: 0.92; filter: contrast(1.05) saturate(0.8);
+  transition: opacity 0.6s ease, filter 0.6s ease;
   animation: drift 20s ease-in-out infinite;
 }
+.background-grid.bg-clear .photo-card { opacity: 1; filter: contrast(1.08) saturate(1.1) brightness(0.95); }
+.background-grid.bg-dimmed .photo-card { opacity: 0.92; filter: contrast(1.05) saturate(0.8); }
 .photo-card:nth-child(2n) { animation-delay: -5s; animation-duration: 25s; }
 .photo-card:nth-child(3n) { animation-delay: -10s; animation-duration: 30s; }
 
 .overlay-gradient {
   position: absolute; inset: 0;
-  background: linear-gradient(180deg, rgba(3,7,18,0.84), rgba(3,7,18,0.9) 40%, rgba(3,7,18,0.95) 75%);
   z-index: 1; pointer-events: none;
+  transition: background 0.6s ease;
+}
+.overlay-gradient.overlay-clear {
+  background: radial-gradient(ellipse at 50% 50%, rgba(3,7,18,0.55), rgba(3,7,18,0.78) 60%, rgba(3,7,18,0.92) 100%);
+}
+.overlay-gradient.overlay-dimmed {
+  background: linear-gradient(180deg, rgba(3,7,18,0.84), rgba(3,7,18,0.9) 40%, rgba(3,7,18,0.95) 75%);
 }
 
 .content-wrapper {
@@ -581,9 +733,9 @@ body { background: var(--bg); overflow: hidden; margin: 0; font-family: 'Space G
   padding: 32px; overflow-y: auto;
 }
 
-.ambient-glow { position: absolute; border-radius: 50%; filter: blur(120px); opacity: 0.18; pointer-events: none; z-index: 1; }
-.glow-1 { width: 480px; height: 480px; background: rgba(255,255,255,0.18); top: -100px; right: -80px; }
-.glow-2 { width: 540px; height: 540px; background: rgba(255,255,255,0.08); bottom: -160px; left: -140px; }
+.ambient-glow { position: absolute; border-radius: 50%; filter: blur(120px); opacity: 0.12; pointer-events: none; z-index: 1; }
+.glow-1 { width: 480px; height: 480px; background: rgba(255,255,255,0.15); top: -100px; right: -80px; }
+.glow-2 { width: 540px; height: 540px; background: rgba(255,255,255,0.06); bottom: -160px; left: -140px; }
 
 .card {
   background: var(--card); border: 1px solid var(--border);

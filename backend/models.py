@@ -33,9 +33,13 @@ class AdminPassRequest(BaseModel):
     adminPass: str
 
 
+class RemoveNominatorRequest(BaseModel):
+    adminPass: str
+    roll: str = Field(..., description="Roll number to remove from nominators")
+
+
 class SendOtpRequest(BaseModel):
     roll: str = Field(..., description="Full roll number")
-    email: str = Field(..., description="Email address to send OTP to")
 
 
 class VerifyOtpRequest(BaseModel):

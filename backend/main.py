@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import csv
 import random
 import smtplib
 from datetime import datetime, timedelta, timezone
@@ -17,6 +18,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 
 from .models import (
     AdminPassRequest,
+    RemoveNominatorRequest,
     SendOtpRequest,
     SubmitNominationsRequest,
     SubmitVotesRequest,
@@ -25,7 +27,7 @@ from .models import (
 from .settings import Settings
 
 
-ALLOWED_CATEGORY_IDS = {str(i) for i in range(1, 44)}
+ALLOWED_CATEGORY_IDS = {str(i) for i in range(1, 50)}
 
 DEFAULT_STATE: Dict[str, Any] = {
     "_id": "singleton",
@@ -57,6 +59,24 @@ def compute_top3(nominee_counts: Dict[str, int]) -> list[str]:
     )
     return [k for k, _ in sorted_items[:3]]
 
+def load_student_emails() -> Dict[str, str]:
+    emails = {}
+    csv_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "students.csv")
+    try:
+        with open(csv_path, "r", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                roll = row.get("Roll Number", "").strip()
+                email = row.get("Permanent Email ID ", "").strip()
+                if roll and email:
+                    norm_roll = normalize_roll(roll)
+                    if norm_roll:
+                        emails[norm_roll] = email
+    except Exception as e:
+        print("Warning: failed to load students.csv:", e)
+    return emails
+
+STUDENT_EMAILS = load_student_emails()
 
 app = FastAPI(title="Class Awards API")
 
@@ -136,10 +156,13 @@ def send_otp_email(to_email: str, otp_code: str) -> None:
 
 @app.post("/api/otp/send")
 async def send_otp(req: SendOtpRequest) -> dict[str, Any]:
-    roll = normalize_name(req.roll)
-    email = normalize_name(req.email)
-    if not roll or not email:
-        raise HTTPException(status_code=400, detail="Roll and email are required")
+    roll = normalize_roll(req.roll)
+    if not roll:
+        raise HTTPException(status_code=400, detail="Roll is required")
+        
+    email = STUDENT_EMAILS.get(roll)
+    if not email:
+        raise HTTPException(status_code=400, detail="No email registered for this roll number")
 
     # Rate limit: don't allow resend within 60 seconds
     existing = await otp_collection.find_one({"_id": roll})
@@ -170,7 +193,7 @@ async def send_otp(req: SendOtpRequest) -> dict[str, Any]:
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to send email: {str(e)}")
 
-    return {"ok": True, "message": "OTP sent to your email"}
+    return {"ok": True, "message": "OTP sent to your email", "email": email}
 
 
 @app.post("/api/otp/verify")
@@ -274,11 +297,19 @@ async def submit_nominations(req: SubmitNominationsRequest) -> dict[str, Any]:
         upsert=True,
     )
 
-    # Store the nominator details in a separate collection for reference
+    # Store the nominator details + their picks so we can reverse if needed
+    normalized_picks = {}
+    for cid, nominee in picks.items():
+        if cid not in ALLOWED_CATEGORY_IDS:
+            continue
+        nominee_norm = normalize_roll(nominee)
+        if nominee_norm:
+            normalized_picks[cid] = nominee_norm
+
     nominators_col = mongo_client[settings.mongodb_db]["nominators"]
     await nominators_col.update_one(
         {"_id": user_id_lower},
-        {"$set": {"user_id": user_id, "username": username, "email": req.email}},
+        {"$set": {"user_id": user_id, "username": username, "email": req.email, "picks": normalized_picks}},
         upsert=True,
     )
 
@@ -303,6 +334,69 @@ async def admin_state(req: AdminPassRequest) -> dict[str, Any]:
         "votes": state.get("votes", {}) if phase in ("voting", "results") else {},
         "nominators_lower": state.get("nominators_lower", []),
     }
+
+
+@app.post("/api/admin/nominators")
+async def admin_nominators(req: AdminPassRequest) -> dict[str, Any]:
+    require_admin(req.adminPass)
+    nominators_col = mongo_client[settings.mongodb_db]["nominators"]
+    cursor = nominators_col.find({})
+    noms = []
+    async for nom in cursor:
+        noms.append({
+            "roll": nom["_id"],
+            "user_id": nom.get("user_id"),
+            "username": nom.get("username"),
+            "email": nom.get("email"),
+            "picks": nom.get("picks", {})
+        })
+    return {"ok": True, "nominators": noms}
+
+
+@app.post("/api/admin/remove-nominator")
+async def admin_remove_nominator(req: RemoveNominatorRequest) -> dict[str, Any]:
+    """Remove a nominator by roll number so they can nominate again.
+    Reverses their nomination counts if their picks were stored."""
+    require_admin(req.adminPass)
+    state = await get_state()
+    if state.get("phase") != "nominating":
+        raise HTTPException(status_code=409, detail="Can only remove nominators during the nominating phase")
+
+    roll = normalize_name(req.roll)
+    roll_lower = normalize_name_lower(req.roll)
+    if not roll:
+        raise HTTPException(status_code=400, detail="Roll number is required")
+
+    # Check if the roll exists in nominators_lower
+    if roll_lower not in set(state.get("nominators_lower", [])):
+        raise HTTPException(status_code=404, detail=f"Roll '{roll}' has not nominated")
+
+    # Try to find their stored picks to reverse the counts
+    nominators_col = mongo_client[settings.mongodb_db]["nominators"]
+    record = await nominators_col.find_one({"_id": roll_lower})
+    picks = (record or {}).get("picks", {}) if record else {}
+
+    # Build decrement operations to reverse nomination counts
+    dec: Dict[str, int] = {}
+    for cid, nominee_norm in picks.items():
+        if cid in ALLOWED_CATEGORY_IDS and nominee_norm:
+            dec[f"nominations.{cid}.{nominee_norm}"] = dec.get(f"nominations.{cid}.{nominee_norm}", 0) - 1
+
+    update_ops: Dict[str, Any] = {
+        "$pull": {"nominators_lower": roll_lower},
+    }
+    if dec:
+        update_ops["$inc"] = dec
+
+    await collection.update_one(
+        {"_id": DEFAULT_STATE["_id"]},
+        update_ops,
+    )
+
+    # Remove the nominator record
+    await nominators_col.delete_one({"_id": roll_lower})
+
+    return {"ok": True, "reversed_picks": bool(dec)}
 
 
 @app.post("/api/admin/finalize")

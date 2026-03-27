@@ -60,7 +60,7 @@ export default function RosterSearchField({
 
       {valueRoll && selected && (
         <div style={{ marginTop: 10, fontSize: 12, color: "rgba(255,255,255,.55)", textAlign: "center" }}>
-          Selected: <strong style={{ color: "#f5c842" }}>{selected.name}</strong> · {selected.roll}
+          Selected: <strong style={{ color: "rgba(255,255,255,.85)" }}>{selected.name}</strong> · {selected.roll}
           <button
             type="button"
             className="clear-x"

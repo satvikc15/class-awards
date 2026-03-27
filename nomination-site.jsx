@@ -7,49 +7,55 @@ const CLASS_PHOTOS = [
 ];
 
 const CATEGORIES = [
-  { id: "1", emoji: "💍", label: "Most likely to be late to their own wedding", gender: null },
-  { id: "2", emoji: "📢", label: "Human Megaphone", gender: null },
-  { id: "3", emoji: "😴", label: "Professional Napper", gender: null },
-  { id: "4", emoji: "🕵️", label: "Most mysterious person", gender: null },
-  { id: "5", emoji: "🎭", label: "Oscar-Worthy Drama King/Queen", gender: null },
-  { id: "6", emoji: "😂", label: "Will become a meme one day", gender: null },
-  { id: "7", emoji: "👑", label: "Best Hairline (boys)", gender: "M" },
-  { id: "8", emoji: "🧔", label: "Best Beard (boys)", gender: "M" },
-  { id: "9", emoji: "💇", label: "Hair That Deserves Its Own Shampoo Ad (girls)", gender: "F" },
+  { id: "1",  emoji: "💍", label: "Most likely to be late to their own wedding", gender: null },
+  { id: "2",  emoji: "📢", label: "Human Megaphone", gender: null },
+  { id: "3",  emoji: "😴", label: "Professional Napper", gender: null },
+  { id: "4",  emoji: "🕵️", label: "Most mysterious person", gender: null },
+  { id: "5",  emoji: "🎭", label: "Oscar-Worthy Drama King/Queen", gender: null },
+  { id: "6",  emoji: "😂", label: "Will become a meme one day", gender: null },
+  { id: "7",  emoji: "👑", label: "Best Hairline (boys)", gender: "M" },
+  { id: "8",  emoji: "🧔", label: "Best Beard (boys)", gender: "M" },
+  { id: "9",  emoji: "💇", label: "Hair That Deserves Its Own Shampoo Ad (girls)", gender: "F" },
   { id: "10", emoji: "⚡", label: "Runs on Red Bull & Pure Chaos (Most active person)", gender: null },
   { id: "11", emoji: "🍎", label: "Teacher's Pet", gender: null },
-  { id: "12", emoji: "💑", label: "The Best Couple (Hypothetically)", gender: "MF" },
+  { id: "12", emoji: "💑", label: "Couple Goals (Officially or Unofficially)", gender: "MF" },
   { id: "13", emoji: "👯", label: "The Unbreakable Duo", gender: null, slots: 2 },
   { id: "14", emoji: "💼", label: "Future Forbes Cover Star (Most likely to become a CEO)", gender: null },
   { id: "15", emoji: "🎨", label: "Born with a Creative Brain", gender: null },
   { id: "16", emoji: "💻", label: "Best Programmer", gender: null },
   { id: "17", emoji: "🎮", label: "Would Rage-Quit Real Life for Gaming (Best ProGamer)", gender: null },
   { id: "18", emoji: "🏛️", label: "Future Minister", gender: null },
-  { id: "19", emoji: "📱", label: "Phone is Basically a Body Part", gender: null },
-  { id: "20", emoji: "🎓", label: "The professor of the class", gender: null },
-  { id: "21", emoji: "🏅", label: "Built Different — Best Athlete", gender: null },
-  { id: "22", emoji: "🏏", label: "Best cricketer", gender: null },
-  { id: "23", emoji: "🎤", label: "Best singer", gender: null },
-  { id: "24", emoji: "💃", label: "Best Dancer", gender: null },
-  { id: "25", emoji: "🎙️", label: "Best Speaker", gender: null },
-  { id: "26", emoji: "😈", label: "Most Notorious", gender: null },
-  { id: "27", emoji: "💛", label: "Walking Green Flag", gender: null },
-  { id: "28", emoji: "🍬", label: "Sweetest Person", gender: null },
-  { id: "29", emoji: "👂", label: "Free Therapist (No Appointment Needed)", gender: null },
-  { id: "30", emoji: "👗", label: "Best Dressing Sense", gender: null },
-  { id: "31", emoji: "☮️", label: "UN Ambassador of the Classroom (Conflict Resolver)", gender: null },
-  { id: "32", emoji: "✏️", label: "Sharpest Eyeliner in the Room (girls)", gender: "F" },
-  { id: "33", emoji: "👜", label: "Accessory Queen — Always Dripping in Jewelry (girls)", gender: "F" },
-  { id: "34", emoji: "💪", label: "Girl Boss Energy — Future Glass Ceiling Smasher (girls)", gender: "F" },
-  { id: "35", emoji: "🎬", label: "The Best Trio", gender: null, slots: 3 },
-  { id: "36", emoji: "🔄", label: "Most likely to switch careers", gender: null },
-  { id: "37", emoji: "📅", label: "Never misses a day (The one with the perfect attendance)", gender: null },
-  { id: "38", emoji: "😂", label: "Most Humorous", gender: null },
-  { id: "39", emoji: "📚", label: "That one friend you call for exam material", gender: null },
-  { id: "40", emoji: "📞", label: "That one person who is always on a call", gender: null },
-  { id: "41", emoji: "💼", label: "The entrepreneur", gender: null },
-  { id: "42", emoji: "🍳", label: "That one friend who cooks like a chef", gender: null },
-  { id: "43", emoji: "🎉", label: "Event Planner (That person who is the first when conducting an event)", gender: null },
+  { id: "19", emoji: "🎓", label: "The professor of the class", gender: null },
+  { id: "20", emoji: "🏅", label: "Built Different — Best Athlete", gender: null },
+  { id: "21", emoji: "🏏", label: "Best cricketer", gender: null },
+  { id: "22", emoji: "🎤", label: "Best singer", gender: null },
+  { id: "23", emoji: "💃", label: "Best Dancer", gender: null },
+  { id: "24", emoji: "🎙️", label: "Best Speaker", gender: null },
+  { id: "25", emoji: "😈", label: "Most Notorious", gender: null },
+  { id: "26", emoji: "💛", label: "Walking Green Flag", gender: null },
+  { id: "27", emoji: "🍬", label: "Sweetest Person", gender: null },
+  { id: "28", emoji: "👂", label: "Free Therapist (No Appointment Needed)", gender: null },
+  { id: "29", emoji: "👗", label: "Best Dressing Sense", gender: null },
+  { id: "30", emoji: "☮️", label: "UN Ambassador of the Classroom (Conflict Resolver)", gender: null },
+  { id: "31", emoji: "✏️", label: "Sharpest Eyeliner in the Room (girls)", gender: "F" },
+  { id: "32", emoji: "👜", label: "Accessory Queen — Always Dripping in Jewelry (girls)", gender: "F" },
+  { id: "33", emoji: "💪", label: "Girl Boss Energy — Future Glass Ceiling Smasher (girls)", gender: "F" },
+  { id: "34", emoji: "🎬", label: "The Best Trio", gender: null, slots: 3 },
+  { id: "35", emoji: "🔄", label: "Most likely to switch careers", gender: null },
+  { id: "36", emoji: "📅", label: "Never misses a day (The one with the perfect attendance)", gender: null },
+  { id: "37", emoji: "😂", label: "Most Humorous", gender: null },
+  { id: "38", emoji: "📚", label: "That one friend you call for exam material", gender: null },
+  { id: "39", emoji: "📞", label: "That one person who is always on a call", gender: null },
+  { id: "40", emoji: "💼", label: "The entrepreneur", gender: null },
+  { id: "41", emoji: "🍳", label: "That one friend who cooks like a chef", gender: null },
+  { id: "42", emoji: "🍿", label: "Professional Snacker (Always has food)", gender: null },
+  { id: "43", emoji: "😆", label: "The Most Contagious Laugh", gender: null },
+  { id: "44", emoji: "📸", label: "The Unofficial Group Photographer", gender: null },
+  { id: "45", emoji: "🎵", label: "Aux Cord King/Queen (Best taste in music)", gender: null },
+  { id: "46", emoji: "🗺️", label: "Human GPS (Never gets lost)", gender: null },
+  { id: "47", emoji: "✍️", label: "Nicest Handwriting", gender: null },
+  { id: "48", emoji: "🦉", label: "The Night Owl (Productive at 3 AM)", gender: null },
+  { id: "49", emoji: "🤝", label: "The Networking Ninja (Knows everyone in the building)", gender: null },
 ];
 
 
@@ -151,13 +157,15 @@ export default function NominationSite({ me, roster, rosterMap }) {
     setBusy(false);
   };
 
+  // Determine if photos should be clear (landing/done) or dimmed (nominate/review)
+  const clearPhotos = screen === "landing" || screen === "done";
+
   /* ─── SCREENS ─────────────────────────────────────── */
 
     if (screen === "landing") return (
-      <Shell>
+      <Shell clearPhotos={clearPhotos}>
         <style>{css}</style>
         <motion.div className="card" {...CARD_MOTION} style={{ maxWidth: 440, width: "100%" }}>
-          <div className="hero-symbol" aria-hidden="true" />
           <h1 className="title">Class Awards</h1>
           <p className="sub">
             Nominate your classmates · 43 categories<br />
@@ -230,7 +238,7 @@ export default function NominationSite({ me, roster, rosterMap }) {
           : `Pick ${slots} people`;
 
     return (
-      <Shell>
+      <Shell clearPhotos={clearPhotos}>
         <style>{css}</style>
         <motion.div {...CARD_MOTION} style={{ maxWidth: 480, width: "100%" }}>
         {/* Progress */}
@@ -313,7 +321,7 @@ export default function NominationSite({ me, roster, rosterMap }) {
   if (screen === "review") {
     const count = Object.keys(picks).length;
     return (
-      <Shell>
+      <Shell clearPhotos={clearPhotos}>
         <style>{css}</style>
         <motion.div style={{ maxWidth: 460, width: "100%" }} className="fade-in" {...CARD_MOTION}>
           <div style={{ textAlign: "center", marginBottom: 24 }}>
@@ -355,13 +363,13 @@ export default function NominationSite({ me, roster, rosterMap }) {
   }
 
   return (
-    <Shell>
+    <Shell clearPhotos={clearPhotos}>
       <style>{css}</style>
       <motion.div className="card" {...CARD_MOTION} style={{ maxWidth: 420, textAlign: "center" }}>
         <div className="mini-symbol" aria-hidden="true" />
         <h2 className="title" style={{ marginTop: 12 }}>Nominations Submitted!</h2>
         <p className="sub" style={{ marginTop: 8 }}>
-          Thank you, <span style={{ color: "#f5c842", fontWeight: 600 }}>{me?.roll}</span>!<br />
+          Thank you, <span style={{ color: "rgba(255,255,255,.85)", fontWeight: 600 }}>{me?.roll}</span>!<br />
           {enc || "Your nominations are in. Stay tuned for the voting round!"}
         </p>
         <div className="sparkles" aria-hidden="true" />
@@ -371,18 +379,18 @@ export default function NominationSite({ me, roster, rosterMap }) {
 }
 
 /* ─── SHELL ─── */
-function Shell({ children }) {
+function Shell({ children, clearPhotos = false }) {
   const backgroundTiles = Array.from({ length: 12 }, (_, i) => CLASS_PHOTOS[i % CLASS_PHOTOS.length]);
 
   return (
     <div className="app-container">
       <style>{css}</style>
-      <div className="background-grid">
+      <div className={`background-grid ${clearPhotos ? "bg-clear" : "bg-dimmed"}`}>
         {backgroundTiles.map((photo, index) => (
           <div key={index} className="photo-card" style={{ backgroundImage: `url(${photo})` }} />
         ))}
       </div>
-      <div className="overlay-gradient" />
+      <div className={`overlay-gradient ${clearPhotos ? "overlay-clear" : "overlay-dimmed"}`} />
       <div className="content-wrapper">
         <div className="ambient-glow glow-1" />
         <div className="ambient-glow glow-2" />
@@ -419,6 +427,7 @@ body { background: var(--bg); overflow: hidden; margin: 0; font-family: 'Space G
   color: #f7f8ff;
 }
 
+/* ── Background grid (shared) ── */
 .background-grid {
   position: absolute;
   inset: -20% 0;
@@ -430,6 +439,19 @@ body { background: var(--bg); overflow: hidden; margin: 0; font-family: 'Space G
   z-index: 0;
   pointer-events: none;
   animation: gridScroll 60s linear infinite;
+  transition: opacity 0.6s ease;
+}
+
+/* Clear photos: high visibility */
+.background-grid.bg-clear .photo-card {
+  opacity: 1;
+  filter: contrast(1.08) saturate(1.1) brightness(0.95);
+}
+
+/* Dimmed photos: nomination/review mode */
+.background-grid.bg-dimmed .photo-card {
+  opacity: 0.92;
+  filter: contrast(1.05) saturate(0.8);
 }
 
 .photo-card {
@@ -440,20 +462,25 @@ body { background: var(--bg); overflow: hidden; margin: 0; font-family: 'Space G
   border-radius: 26px;
   box-shadow: 0 25px 60px rgba(0, 0, 0, 0.65);
   border: 1px solid rgba(255,255,255,0.06);
-  opacity: 0.92;
-  filter: contrast(1.05) saturate(0.8);
+  transition: opacity 0.6s ease, filter 0.6s ease;
   animation: drift 20s ease-in-out infinite;
 }
 .photo-card:nth-child(2n) { animation-delay: -5s; animation-duration: 25s; }
 .photo-card:nth-child(3n) { animation-delay: -10s; animation-duration: 30s; }
 
+/* Clear overlay: lighter so photos pop through */
 .overlay-gradient {
   position: absolute;
   inset: 0;
-  background:
-    linear-gradient(180deg, rgba(3,7,18,0.84), rgba(3,7,18,0.9) 40%, rgba(3,7,18,0.95) 75%);
   z-index: 1;
   pointer-events: none;
+  transition: background 0.6s ease;
+}
+.overlay-gradient.overlay-clear {
+  background: radial-gradient(ellipse at 50% 50%, rgba(3,7,18,0.55), rgba(3,7,18,0.78) 60%, rgba(3,7,18,0.92) 100%);
+}
+.overlay-gradient.overlay-dimmed {
+  background: linear-gradient(180deg, rgba(3,7,18,0.84), rgba(3,7,18,0.9) 40%, rgba(3,7,18,0.95) 75%);
 }
 
 .content-wrapper {
@@ -471,13 +498,14 @@ body { background: var(--bg); overflow: hidden; margin: 0; font-family: 'Space G
   position: absolute;
   border-radius: 50%;
   filter: blur(120px);
-  opacity: 0.18;
+  opacity: 0.12;
   pointer-events: none;
   z-index: 1;
 }
-.glow-1 { width: 480px; height: 480px; background: rgba(255,255,255,0.18); top: -100px; right: -80px; }
-.glow-2 { width: 540px; height: 540px; background: rgba(255,255,255,0.08); bottom: -160px; left: -140px; }
+.glow-1 { width: 480px; height: 480px; background: rgba(255,255,255,0.15); top: -100px; right: -80px; }
+.glow-2 { width: 540px; height: 540px; background: rgba(255,255,255,0.06); bottom: -160px; left: -140px; }
 
+/* ── Card ── */
 .card {
   background: var(--card);
   border: 1px solid var(--border);
@@ -671,4 +699,3 @@ body { background: var(--bg); overflow: hidden; margin: 0; font-family: 'Space G
 @keyframes fadeInUp { from { opacity:0; transform: translateY(18px); } to { opacity:1; transform: translateY(0); } }
 .fade-in { animation: fadeInUp .35s ease both; }
 `;
-
