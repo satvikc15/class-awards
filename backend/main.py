@@ -46,6 +46,10 @@ def normalize_name(name: str) -> str:
     return name.strip()
 
 def normalize_roll(roll: str) -> str:
+    if "|" in roll:
+        parts = roll.split("|")
+        norm_parts = ["".join(ch for ch in p.strip() if ch.isdigit()) for p in parts]
+        return "|".join(norm_parts)
     return "".join(ch for ch in normalize_name(roll) if ch.isdigit())
 
 

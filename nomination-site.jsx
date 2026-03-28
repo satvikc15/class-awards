@@ -411,11 +411,6 @@ export default function NominationSite({ me, roster, rosterMap }) {
             </button>
           </div>
           {saving && <p className="hint" style={{ marginTop: 8, color: "rgba(255,255,255,.35)" }}>Saving draft…</p>}
-          {!isMulti && picks[cat.id] && (
-            <p className="hint" style={{ marginTop: 14 }}>
-              Selected: <em>{selectedName ? `${selectedName} (${picks[cat.id]})` : picks[cat.id]}</em>
-            </p>
-          )}
             </>
           )}
         </div>

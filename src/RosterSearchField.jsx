@@ -9,6 +9,7 @@ export default function RosterSearchField({
 }) {
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
   const boxRef = useRef(null);
 
   const items = useMemo(() => {
@@ -43,34 +44,50 @@ export default function RosterSearchField({
     return () => document.removeEventListener("mousedown", onDoc);
   }, []);
 
+  // When focused, we show the query 'q'. When blurred, if we have a selection, show its name.
+  // This makes the selection look "filled" while still allowing search on focus.
+  const displayValue = isFocused ? q : (selected ? `${selected.name} (${selected.roll})` : q);
+
   return (
     <div ref={boxRef} style={{ position: "relative", width: "100%" }}>
       <input
         className="field"
-        placeholder={selected ? `${selected.name} (${selected.roll})` : placeholder}
-        value={q}
+        placeholder={placeholder}
+        value={displayValue}
         onChange={(e) => {
           setQ(e.target.value);
           setOpen(true);
         }}
-        onFocus={() => setOpen(true)}
-        style={{ textAlign: "center" }}
+        onFocus={() => {
+          setOpen(true);
+          setIsFocused(true);
+        }}
+        onBlur={() => {
+          // Keep search results open for a tiny bit so click can register if blur happens first
+          setTimeout(() => setIsFocused(false), 200);
+        }}
+        style={{
+          textAlign: "center",
+          color: (!isFocused && selected) ? "#fff" : undefined,
+          fontWeight: (!isFocused && selected) ? 600 : undefined,
+          background: (!isFocused && selected) ? "rgba(255,255,255,0.08)" : undefined,
+        }}
         autoFocus={autoFocus}
       />
 
       {valueRoll && selected && (
-        <div style={{ marginTop: 10, fontSize: 12, color: "rgba(255,255,255,.55)", textAlign: "center" }}>
-          Selected: <strong style={{ color: "rgba(255,255,255,.85)" }}>{selected.name}</strong> · {selected.roll}
+        <div style={{ marginTop: 6, textAlign: "center" }}>
           <button
             type="button"
             className="clear-x"
+            style={{ fontSize: 11, opacity: 0.6 }}
             onClick={() => {
               onChangeRoll("");
               setQ("");
               setOpen(false);
             }}
           >
-            clear
+            clear selection
           </button>
         </div>
       )}
