@@ -59,14 +59,16 @@ const CATEGORIES = [
 ];
 
 
+const getBaseUrl = () => import.meta.env.VITE_API_URL || "";
+
 const apiGet = async (path) => {
-  const res = await fetch(path, { method: "GET", headers: { "Content-Type": "application/json" } });
+  const res = await fetch(getBaseUrl() + path, { method: "GET", headers: { "Content-Type": "application/json" } });
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 };
 
 const apiPost = async (path, body) => {
-  const res = await fetch(path, {
+  const res = await fetch(getBaseUrl() + path, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -96,6 +98,7 @@ export default function NominationSite({ me, roster, rosterMap }) {
   const [enc, setEnc] = useState("");
   const [hasDraft, setHasDraft] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [showList, setShowList] = useState(false);
 
   useEffect(() => {
     if (screen !== "done") return;
@@ -312,11 +315,47 @@ export default function NominationSite({ me, roster, rosterMap }) {
             <span>{pct}%</span>
           </div>
           <div className="bar-track"><div className="bar-fill" style={{ width: `${pct}%` }} /></div>
+          <button className="btn-ghost" onClick={() => setShowList(!showList)} style={{ display: "block", margin: "12px auto 0", padding: "6px 14px", fontSize: 13, borderRadius: 999, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.03)" }}>
+            {showList ? "Hide Questions List ▲" : "View All Questions ▼"}
+          </button>
         </div>
 
         <div className="card" style={{ width: "100%", textAlign: "center" }}>
-          <div style={{ fontSize: 54, marginBottom: 8 }}>{cat.emoji}</div>
-          <p className="badge">Award #{cat.id}</p>
+          {showList ? (
+            <div style={{ textAlign: "left" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                <h2 className="title" style={{ fontSize: "1.5rem", margin: 0 }}>All Questions</h2>
+                <button className="btn-ghost" style={{ padding: "6px 12px", fontSize: 12 }} onClick={() => setShowList(false)}>Close</button>
+              </div>
+              <div className="scroll-list" style={{ maxHeight: 400, paddingRight: 4 }}>
+                {CATEGORIES.map((c, i) => {
+                  const hasPick = !!picks[c.id];
+                  return (
+                    <button
+                      key={c.id}
+                      onClick={() => { setIdx(i); setShowList(false); }}
+                      style={{
+                        display: "flex", alignItems: "center", gap: 10, padding: "10px 14px",
+                        background: i === idx ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.02)",
+                        border: "1px solid", borderColor: i === idx ? "rgba(255,255,255,0.2)" : "transparent",
+                        borderRadius: 12, cursor: "pointer", color: "#fff", textAlign: "left", width: "100%",
+                        transition: "background 0.2s", marginBottom: 6
+                      }}
+                    >
+                      <span style={{ fontSize: 18 }}>{c.emoji}</span>
+                      <span style={{ flex: 1, fontSize: 13, color: "rgba(255,255,255,.85)" }}>{c.label}</span>
+                      <span style={{ fontSize: 11, fontWeight: 600, color: hasPick ? "rgba(120,255,150,0.8)" : "rgba(255,255,255,0.3)" }}>
+                        {hasPick ? "Answered" : "Empty"}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
+            <>
+              <div style={{ fontSize: 54, marginBottom: 8 }}>{cat.emoji}</div>
+              <p className="badge">Award #{cat.id}</p>
           <h2 className="q-title">{cat.label}</h2>
           {genderFilter && (
             <div className={`gender-pill ${genderFilter === "M" ? "pill-m" : "pill-f"}`}>
@@ -376,6 +415,8 @@ export default function NominationSite({ me, roster, rosterMap }) {
             <p className="hint" style={{ marginTop: 14 }}>
               Selected: <em>{selectedName ? `${selectedName} (${picks[cat.id]})` : picks[cat.id]}</em>
             </p>
+          )}
+            </>
           )}
         </div>
         </motion.div>

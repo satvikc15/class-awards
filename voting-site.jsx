@@ -56,14 +56,16 @@ const CATEGORIES = [
   { id: "49", emoji: "🤝", label: "The Networking Ninja (Knows everyone in the building)", gender: null },
 ];
 
+const getBaseUrl = () => import.meta.env.VITE_API_URL || "";
+
 const apiGet = async (path) => {
-  const res = await fetch(path, { method: "GET", headers: { "Content-Type": "application/json" } });
+  const res = await fetch(getBaseUrl() + path, { method: "GET", headers: { "Content-Type": "application/json" } });
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 };
 
 const apiPost = async (path, body) => {
-  const res = await fetch(path, {
+  const res = await fetch(getBaseUrl() + path, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),

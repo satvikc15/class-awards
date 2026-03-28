@@ -24,8 +24,10 @@ export default function Login({ onLogin }) {
 
   const roll = useMemo(() => `${PREFIX}${xx}`, [xx]);
 
+  const getBaseUrl = () => import.meta.env.VITE_API_URL || "";
+
   const apiPost = async (path, body) => {
-    const res = await fetch(path, {
+    const res = await fetch(getBaseUrl() + path, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
