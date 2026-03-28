@@ -16,7 +16,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from motor.motor_asyncio import AsyncIOMotorClient
 
-from models import (
+from backend.models import (
     AdminPassRequest,
     GetDraftRequest,
     RemoveNominatorRequest,
@@ -26,7 +26,7 @@ from models import (
     SubmitVotesRequest,
     VerifyOtpRequest,
 )
-from settings import Settings
+from backend.settings import Settings
 
 
 ALLOWED_CATEGORY_IDS = {str(i) for i in range(1, 50)}
@@ -608,6 +608,39 @@ async def admin_lock_voting(req: AdminPassRequest) -> dict[str, Any]:
         "finalists": state2.get("finalists", {}),
         "votes": state2.get("votes", {}),
     }
+
+
+@app.post("/api/admin/reset")
+async def admin_reset(req: AdminPassRequest) -> dict[str, Any]:
+    require_admin(req.adminPass)
+    
+    # Reset main state to defaults
+    await collection.update_one(
+        {"_id": DEFAULT_STATE["_id"]},
+        {"$set": {
+            "phase": DEFAULT_STATE["phase"],
+            "nominations": DEFAULT_STATE["nominations"],
+            "nominators_lower": DEFAULT_STATE["nominators_lower"],
+            "finalists": DEFAULT_STATE["finalists"],
+            "votes": DEFAULT_STATE["votes"],
+            "voted_lower": DEFAULT_STATE["voted_lower"],
+        }},
+        upsert=True,
+    )
+    
+    # Clear all other collections
+    await drafts_collection.delete_many({})
+    
+    nominators_col = mongo_client[settings.mongodb_db]["nominators"]
+    await nominators_col.delete_many({})
+    
+    voters_col = mongo_client[settings.mongodb_db]["voters"]
+    await voters_col.delete_many({})
+    
+    # Optional: Clear OTPs
+    await otp_collection.delete_many({})
+    
+    return {"ok": True, "message": "System reset successfully"}
 
 
 @app.get("/api/votes/voted/check")

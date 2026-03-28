@@ -196,6 +196,22 @@ export default function VotingSite({ me, rosterMap, onLogout }) {
     } catch {}
   };
 
+  const resetSystem = async () => {
+    if (!window.confirm("⚠️ DANGER: This will PERMANENTLY delete all nominations, votes, and user data. Are you absolutely sure?")) return;
+    if (!window.confirm("FINAL CONFIRMATION: Start over from scratch? There is no undo.")) return;
+    
+    setBusy(true);
+    try {
+      await apiPost("/api/admin/reset", { adminPass });
+      alert("✅ System has been reset. All data cleared.");
+      window.location.reload();
+    } catch (e) {
+      alert("Reset failed: " + e.message);
+    }
+    setBusy(false);
+  };
+
+
   const removeNominator = async (targetRoll) => {
     const r = (targetRoll || removeRoll).trim();
     if (!r) { setRemoveErr("Enter a roll number"); return; }
@@ -494,6 +510,28 @@ export default function VotingSite({ me, rosterMap, onLogout }) {
               );
             })}
           </div>
+          {/* Danger Zone */}
+          <div className="card" style={{ marginTop: 24, borderColor: "rgba(255, 80, 80, 0.3)", background: "rgba(255, 0, 0, 0.02)" }}>
+            <p style={{ color: "rgba(255, 120, 120, 0.9)", fontSize: 13, fontWeight: 600, marginBottom: 10 }}>
+              ⚠️ Danger Zone
+            </p>
+            <button 
+              className="btn-ghost" 
+              onClick={resetSystem} 
+              disabled={busy}
+              style={{ 
+                width: "100%", 
+                borderColor: "rgba(255, 80, 80, 0.4)", 
+                color: "rgba(255, 120, 120, 0.9)" 
+              }}
+            >
+              {busy ? "Resetting..." : "Reset System & Start Over"}
+            </button>
+            <p style={{ color: "rgba(255,255,255,.3)", fontSize: 11, marginTop: 8, textAlign: "center" }}>
+              This will clear all nominations, votes, and registered users.
+            </p>
+          </div>
+
           <button className="btn-ghost" onClick={() => setMode("hub")} style={{ marginTop: 12, width: "100%" }}>← Back</button>
         </div>
       </Shell>
