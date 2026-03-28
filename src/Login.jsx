@@ -325,6 +325,10 @@ export default function Login({ onLogin }) {
                     {countdown > 0 ? `Resend in ${countdown}s` : "Resend OTP"}
                   </button>
                 </div>
+                <p style={{ color: "rgba(255,255,255,.35)", fontSize: 11, textAlign: "center", marginTop: 22, lineHeight: 1.5 }}>
+                  If your mail changed or if this mail is inaccessible,<br />
+                  please reach out to <a href="mailto:oucefest@gmail.com" style={{ color: "rgba(255,255,255,.7)", textDecoration: "none", fontWeight: 500 }}>oucefest@gmail.com</a> to update it.
+                </p>
               </>
             )}
           </div>
