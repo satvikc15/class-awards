@@ -191,7 +191,7 @@ export default function NominationSite({ me, roster, rosterMap }) {
       try {
         const r = await apiGet(`/api/nominations/nominators/check?name=${encodeURIComponent(n)}`);
         if (r.exists) {
-          setNameErr("You have already submitted nominations!");
+          setNameErr("You have already submitted! Contact oucefest@gmail.com if there is any discrepancy.");
           setBusy(false);
           return;
         }
@@ -487,7 +487,9 @@ export default function NominationSite({ me, roster, rosterMap }) {
               </div>
             ))}
           </div>
-          <p className="hint" style={{ marginTop: 16 }}>Nominations are locked. Contact admin if you need to make changes.</p>
+          <p className="hint" style={{ marginTop: 16 }}>
+            Nominations are locked. Contact <a href="mailto:oucefest@gmail.com" style={{ color: "rgba(255,255,255,0.7)" }}>oucefest@gmail.com</a> if there is any discrepancy.
+          </p>
         </motion.div>
       </Shell>
     );
@@ -502,6 +504,16 @@ export default function NominationSite({ me, roster, rosterMap }) {
         <p className="sub" style={{ marginTop: 8 }}>
           Thank you, <span style={{ color: "rgba(255,255,255,.85)", fontWeight: 600 }}>{me?.roll}</span>!<br />
           {enc || "Your nominations are in. Stay tuned for the voting round!"}
+        </p>
+        <button
+          className="btn-ghost"
+          style={{ marginTop: 24, padding: "8px 20px", fontSize: 13, background: "rgba(255,255,255,0.05)" }}
+          onClick={() => setScreen("submitted")}
+        >
+          View your submitted answers
+        </button>
+        <p className="hint" style={{ marginTop: 16 }}>
+          Contact <a href="mailto:oucefest@gmail.com" style={{ color: "rgba(255,255,255,0.7)" }}>oucefest@gmail.com</a> if there is any discrepancy.
         </p>
         <div className="sparkles" aria-hidden="true" />
       </motion.div>

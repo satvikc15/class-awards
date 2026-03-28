@@ -16,7 +16,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from motor.motor_asyncio import AsyncIOMotorClient
 
-from backend.models import (
+from models import (
     AdminPassRequest,
     GetDraftRequest,
     RemoveNominatorRequest,
@@ -26,7 +26,7 @@ from backend.models import (
     SubmitVotesRequest,
     VerifyOtpRequest,
 )
-from backend.settings import Settings
+from settings import Settings
 
 
 ALLOWED_CATEGORY_IDS = {str(i) for i in range(1, 50)}
