@@ -13,3 +13,4 @@ classenv/
 venv/
 
 .vercel
+cloudflared.exe
