@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { apiGet, apiPost } from "./src/api.js";
 
 const CLASS_PHOTOS = [
   "/cp1.jpeg", "/cp2.jpeg", "/cp3.jpeg", "/cp4.jpeg", "/cp5.jpeg", "/cp6.jpeg", "/cp7.jpeg", "/cp8.jpg", "/cp9.jpg"
@@ -56,27 +57,8 @@ const CATEGORIES = [
   { id: "49", emoji: "🤝", label: "The Networking Ninja (Knows everyone in the building)", gender: null },
 ];
 
-const getBaseUrl = () => import.meta.env.VITE_API_URL || "";
-
-const apiGet = async (path) => {
-  const res = await fetch(getBaseUrl() + path, { method: "GET", headers: { "Content-Type": "application/json" } });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
-};
-
-const apiPost = async (path, body) => {
-  const res = await fetch(getBaseUrl() + path, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
-};
-
 const toTitle = (s) => s.replace(/\b\w/g, (c) => c.toUpperCase());
-const getTop3 = (obj) =>
-  Object.entries(obj || {}).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([n]) => n);
+const rankLabel = (i) => (i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `#${i + 1}`);
 
 /* ── Main component ──────────────────────────────────── */
 export default function VotingSite({ me, rosterMap, onLogout }) {
@@ -87,44 +69,35 @@ export default function VotingSite({ me, rosterMap, onLogout }) {
 
   // mode: hub | admin | student-login | voting | voted | results
   const [mode, setMode]             = useState(me?.admin ? "admin" : "hub");
-  const [adminPass, setAdminPass]   = useState("");
-  const [adminErr, setAdminErr]     = useState("");
   const [nominations, setNominations] = useState({});
 
-  const [studentName, setStudentName] = useState(me?.roll || "");
+  const studentName = me?.roll || "";
   const [nameErr, setNameErr]         = useState("");
   const [votes, setVotes]             = useState({});
   const [voteIdx, setVoteIdx]         = useState(0);
   const [busy, setBusy]               = useState(false);
   const [enc, setEnc]                 = useState("");
   const [voteFilter, setVoteFilter]   = useState("");
-  const [removeRoll, setRemoveRoll]   = useState("");
-  const [removeMsg, setRemoveMsg]     = useState("");
-  const [removeErr, setRemoveErr]     = useState("");
-  const [adminNominators, setAdminNominators] = useState([]);
-  const [expandedRoll, setExpandedRoll] = useState(null);
+  const [adminSummary, setAdminSummary] = useState({ nomination_count: 0, vote_count: 0 });
 
   useEffect(() => { init(); }, []);
   useEffect(() => {
     if (!me?.admin) return;
-    setAdminPass(me?.adminPass || "");
     setMode("admin");
-    // Load admin state once password is present
-    if (!me?.adminPass) return;
     (async () => {
       try {
-        const s = await apiPost("/api/admin/state", { adminPass: me.adminPass });
+        const s = await apiGet("/api/admin/state");
         setPhase(s.phase || "nominating");
         setNominations(s.nominations || {});
         setFinalists(s.finalists || {});
         setAllVotes(s.votes || {});
-
-        const nr = await apiPost("/api/admin/nominators", { adminPass: me.adminPass });
-        setAdminNominators(nr.nominators || []);
+        setAdminSummary({
+          nomination_count: s.nomination_count || 0,
+          vote_count: s.vote_count || 0,
+        });
       } catch {}
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [me?.admin, me?.adminPass]);
+  }, [me?.admin]);
   useEffect(() => {
     if (mode !== "voted") return;
     const options = [
@@ -160,7 +133,7 @@ export default function VotingSite({ me, rosterMap, onLogout }) {
   const finalizeNominations = async () => {
     setBusy(true);
     try {
-      const r = await apiPost("/api/admin/finalize", { adminPass });
+      const r = await apiPost("/api/admin/finalize");
       setFinalists(r.finalists || {});
       setAllVotes({});
       setPhase("voting");
@@ -175,7 +148,7 @@ export default function VotingSite({ me, rosterMap, onLogout }) {
   const lockVoting = async () => {
     setBusy(true);
     try {
-      const r = await apiPost("/api/admin/lock-voting", { adminPass });
+      const r = await apiPost("/api/admin/lock-voting");
       setPhase("results");
       setFinalists(r.finalists || finalists);
       setAllVotes(r.votes || {});
@@ -202,7 +175,7 @@ export default function VotingSite({ me, rosterMap, onLogout }) {
     
     setBusy(true);
     try {
-      await apiPost("/api/admin/reset", { adminPass });
+      await apiPost("/api/admin/reset");
       alert("✅ System has been reset. All data cleared.");
       window.location.reload();
     } catch (e) {
@@ -212,43 +185,13 @@ export default function VotingSite({ me, rosterMap, onLogout }) {
   };
 
 
-  const removeNominator = async (targetRoll) => {
-    const r = (targetRoll || removeRoll).trim();
-    if (!r) { setRemoveErr("Enter a roll number"); return; }
-    setRemoveErr(""); setRemoveMsg("");
-    setBusy(true);
-    try {
-      const res = await apiPost("/api/admin/remove-nominator", { adminPass, roll: r });
-      if (!targetRoll) setRemoveMsg(`✅ Removed ${r}. ${res.reversed_picks ? "Nomination counts reversed." : "No stored picks to reverse."}`);
-      else alert(`✅ Removed ${r}. ${res.reversed_picks ? "Nomination counts reversed." : "No stored picks to reverse."}`);
-      setRemoveRoll("");
-      // Refresh admin state
-      try {
-        const s = await apiPost("/api/admin/state", { adminPass });
-        setPhase(s.phase || "nominating");
-        setNominations(s.nominations || {});
-        setFinalists(s.finalists || {});
-        setAllVotes(s.votes || {});
-        
-        const nr = await apiPost("/api/admin/nominators", { adminPass });
-        setAdminNominators(nr.nominators || []);
-      } catch {}
-    } catch (e) {
-      let msg = "Failed to remove nominator.";
-      try { msg = JSON.parse(e.message).detail || msg; } catch { msg = e.message || msg; }
-      setRemoveErr(msg);
-    }
-    setBusy(false);
-  };
-
   /* ── STUDENT VOTING ── */
-  const handleStudentStart = async () => {
-    const n = studentName.trim();
-    if (!n) { setNameErr("Missing roll number"); return; }
+const handleStudentStart = async () => {
+    if (!me?.roll) { setNameErr("Missing roll number"); return; }
     setBusy(true);
     try {
-      const r = await apiGet(`/api/votes/voted/check?name=${encodeURIComponent(n)}`);
-      if (r.exists) {
+      const status = await apiGet("/api/me/status");
+      if (status.vote_submitted) {
         setNameErr("You have already voted!");
         setBusy(false); return;
       }
@@ -270,15 +213,10 @@ export default function VotingSite({ me, rosterMap, onLogout }) {
     else submitVotes(newVotes);
   };
 
-  const submitVotes = async (finalVotes) => {
+const submitVotes = async (finalVotes) => {
     setBusy(true);
     try {
-      await apiPost("/api/votes/submit", {
-        user_id: studentName.trim(),
-        username: rosterMap?.get(String(studentName.trim())) || "",
-        email: me?.email || "",
-        votes: finalVotes,
-      });
+      await apiPost("/api/votes/submit", { votes: finalVotes });
 
       setMode("voted");
     } catch (e) { alert("Vote failed, please try again."); }
@@ -371,141 +309,43 @@ export default function VotingSite({ me, rosterMap, onLogout }) {
             )}
           </div>
 
-          {/* Remove Nominator Manual Input */}
-          {phase === "nominating" && (
-            <div className="card" style={{ marginBottom: 16 }}>
-              <p style={{ color: "rgba(255,255,255,.6)", fontSize: 13, marginBottom: 10 }}>
-                🗑️ Remove a nominator so they can re-submit
-              </p>
-              <div style={{ display: "flex", gap: 8 }}>
-                <input
-                  className="field"
-                  placeholder="Roll number (e.g. 100522729001)"
-                  value={removeRoll}
-                  onChange={(e) => { setRemoveRoll(e.target.value); setRemoveErr(""); setRemoveMsg(""); }}
-                  onKeyDown={(e) => e.key === "Enter" && removeNominator()}
-                  style={{ flex: 1 }}
-                />
-                <button
-                  className="btn-gold"
-                  onClick={() => removeNominator()}
-                  disabled={busy || !removeRoll.trim()}
-                  style={{ whiteSpace: "nowrap" }}
-                >
-                  {busy ? "…" : "🗑️ Remove"}
-                </button>
-              </div>
-              {removeErr && <p className="err" style={{ textAlign: "left" }}>{removeErr}</p>}
-              {removeMsg && <p style={{ color: "rgba(120,255,150,0.8)", fontSize: 13, marginTop: 6 }}>{removeMsg}</p>}
-            </div>
-          )}
-
-          {/* Detailed Nominator List */}
-          {phase === "nominating" && adminNominators.length > 0 && (
-            <div style={{ marginBottom: 24 }}>
-              <h2 style={{ fontSize: 16, marginBottom: 12, color: "rgba(255,255,255,.85)" }}>Registered Nominators ({adminNominators.length})</h2>
-              <div className="scroll-list" style={{ maxHeight: 380, display: "flex", flexDirection: "column", gap: 10 }}>
-                {adminNominators.map((nom) => {
-                  const isExpanded = expandedRoll === nom.roll;
-                  return (
-                    <div key={nom.roll} className="admin-cat-row" style={{ padding: "14px 18px", cursor: "pointer", transition: "background 0.2s" }} onClick={() => setExpandedRoll(isExpanded ? null : nom.roll)}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <div>
-                          <p style={{ fontWeight: 600, color: "#fff", fontSize: 15 }}>
-                            {nom.username || "Unknown"} <span style={{ color: "rgba(255,255,255,.45)", fontWeight: 400 }}>({nom.roll})</span>
-                          </p>
-                          {nom.email && <p style={{ fontSize: 12, color: "rgba(255,255,255,.4)", marginTop: 2 }}>{nom.email}</p>}
-                        </div>
-                        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                          {isExpanded && (
-                            <button
-                              className="btn-ghost"
-                              style={{ padding: "6px 12px", fontSize: 12, borderColor: "rgba(255, 119, 143, 0.4)", color: "rgba(255, 119, 143, 0.9)" }}
-                              onClick={(e) => { e.stopPropagation(); removeNominator(nom.roll); }}
-                              disabled={busy}
-                            >
-                              Delete
-                            </button>
-                          )}
-                          <span style={{ color: "rgba(255,255,255,.3)", fontSize: 18, transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }}>
-                            ▼
-                          </span>
-                        </div>
-                      </div>
-                      
-                      {isExpanded && (
-                        <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid rgba(255,255,255,.06)" }}>
-                          <p style={{ fontSize: 12, color: "rgba(255,255,255,.5)", marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.05em" }}>Categories picked</p>
-                          <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 8 }}>
-                            {CATEGORIES.map(cat => {
-                              const pickedValue = nom.picks[cat.id];
-                              if (!pickedValue) return null; // Skip empty picks
-                              
-                              // Handle multi-pick (pipe separated)
-                              const parts = pickedValue.split("|").filter(Boolean);
-                              
-                              return (
-                                <div key={cat.id} style={{ display: "flex", fontSize: 13, background: "rgba(255,255,255,.02)", padding: "6px 10px", borderRadius: 8 }}>
-                                  <span style={{ width: 24 }}>{cat.emoji}</span>
-                                  <div style={{ flex: 1 }}>
-                                    <span style={{ color: "rgba(255,255,255,.55)", display: "block", marginBottom: 2 }}>{cat.label}</span>
-                                    {parts.map((p, idx) => (
-                                      <span key={idx} style={{ color: "rgba(255,255,255,.9)", display: "block" }}>
-                                        • {rosterMap?.get(String(p)) ? `${rosterMap.get(String(p))} (${p})` : p}
-                                      </span>
-                                    ))}
-                                  </div>
-                                </div>
-                              );
-                            })}
-                            {Object.keys(nom.picks || {}).length === 0 && (
-                              <p style={{ fontSize: 13, color: "rgba(255,255,255,.4)", fontStyle: "italic" }}>No specific picks stored for this nominator.</p>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
+          <div className="card" style={{ marginBottom: 16 }}>
+            <p style={{ color: "rgba(255,255,255,.6)", fontSize: 13, marginBottom: 12 }}>
+              Privacy summary
+            </p>
+            <p className="sub" style={{ textAlign: "left" }}>
+              Submitted nominations: <strong style={{ color: "rgba(255,255,255,.85)" }}>{adminSummary.nomination_count}</strong><br />
+              Submitted votes: <strong style={{ color: "rgba(255,255,255,.85)" }}>{adminSummary.vote_count}</strong>
+            </p>
+            <p style={{ color: "rgba(255,255,255,.35)", fontSize: 12, marginTop: 10, lineHeight: 1.5 }}>
+              Individual submissions are no longer stored after final submit. That keeps ballots anonymous, but it also removes per-user reversal and audit views.
+            </p>
+          </div>
 
           {/* Per-category nominees & vote counts */}
           <div className="scroll-list" style={{ maxHeight: 480 }}>
             {CATEGORIES.map((cat) => {
-              const nomEntries = Object.entries(nominations[cat.id] || {}).sort((a, b) => b[1] - a[1]);
-              const voteEntries = Object.entries(allVotes[cat.id] || {}).sort((a, b) => b[1] - a[1]);
-              const f = finalists[cat.id] || [];
+              const nomEntries = Object.entries(nominations[cat.id] || {})
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 5);
               return (
                 <div key={cat.id} className="admin-cat-row">
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
                     <span>{cat.emoji}</span>
                     <span style={{ fontWeight: 600, color: "#fff", fontSize: 14 }}>{cat.label}</span>
                   </div>
-                  {phase === "nominating" && (
-                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                      {nomEntries.length === 0
-                        ? <span className="row-skip">no nominations yet</span>
-                        : nomEntries.map(([n, c]) => (
-                          <span key={n} className="nom-chip">{toTitle(n)} <strong>({c})</strong></span>
-                        ))}
-                    </div>
-                  )}
-                  {(phase === "voting" || phase === "results") && (
-                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                      {f.map((n, i) => {
-                        const vcount = (allVotes[cat.id] || {})[n] || 0;
-                        return (
-                          <span key={n} className={`nom-chip ${i === 0 && voteEntries[0]?.[0] === n ? "chip-lead" : ""}`}>
-                            {i === 0 ? "🥇 " : i === 1 ? "🥈 " : "🥉 "}
-                            {toTitle(n)} {phase === "results" ? `— ${vcount} votes` : ""}
-                          </span>
-                        );
-                      })}
-                      {f.length === 0 && <span className="row-skip">no finalists set</span>}
-                    </div>
-                  )}
+                  <p style={{ color: "rgba(255,255,255,.45)", fontSize: 12, marginBottom: 8 }}>
+                    Top 5 nominations
+                  </p>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    {nomEntries.length === 0
+                      ? <span className="row-skip">no nominations yet</span>
+                      : nomEntries.map(([n, c], i) => (
+                        <span key={n} className={`nom-chip ${i === 0 ? "chip-lead" : ""}`}>
+                          #{i + 1} {toTitle(n)} <strong>({c})</strong>
+                        </span>
+                      ))}
+                  </div>
                 </div>
               );
             })}
@@ -610,7 +450,7 @@ export default function VotingSite({ me, rosterMap, onLogout }) {
                 onClick={() => setVotes({ ...votes, [cat.id]: n })}
                 className={`nominee-btn ${selected === n ? "nominee-selected" : ""}`}
               >
-                <span style={{ fontSize: 20 }}>{i === 0 ? "🥇" : i === 1 ? "🥈" : "🥉"}</span>
+                <span style={{ fontSize: 20 }}>{rankLabel(i)}</span>
                 <span style={{ flex: 1, textAlign: "left" }}>
                   {rosterMap?.get(String(n)) ? `${rosterMap.get(String(n))} (${n})` : toTitle(n)}
                 </span>
@@ -680,7 +520,7 @@ export default function VotingSite({ me, rosterMap, onLogout }) {
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                   {sorted.map((n, i) => (
                     <span key={n} className={`nom-chip ${i === 0 ? "chip-lead" : ""}`}>
-                      {i === 0 ? "🥇 " : i === 1 ? "🥈 " : "🥉 "}
+                      {rankLabel(i)}{" "}
                       {rosterMap?.get(String(n)) ? `${rosterMap.get(String(n))} (${n})` : toTitle(n)} — {cv[n] || 0} votes
                     </span>
                   ))}

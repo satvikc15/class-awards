@@ -11,6 +11,10 @@ class Settings(BaseSettings):
     mongodb_collection: str = "state"
 
     admin_password: str
+    session_secret: str = "change-me-session-secret"
+    session_cookie_name: str = "class_awards_session"
+    session_ttl_hours: int = 12
+    session_cookie_secure: bool = False
 
     api_prefix: str = "/api"
     cors_origins: str = "*"

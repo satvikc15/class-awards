@@ -2,15 +2,18 @@ from __future__ import annotations
 
 import os
 import csv
+import json
 import random
 import smtplib
+import hmac
+import hashlib
+import base64
 from datetime import datetime, timedelta, timezone
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from typing import Any, Dict
 
-import pyotp
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -18,8 +21,6 @@ from motor.motor_asyncio import AsyncIOMotorClient
 
 from models import (
     AdminPassRequest,
-    GetDraftRequest,
-    RemoveNominatorRequest,
     SaveDraftRequest,
     SendOtpRequest,
     SubmitNominationsRequest,
@@ -35,10 +36,10 @@ DEFAULT_STATE: Dict[str, Any] = {
     "_id": "singleton",
     "phase": "nominating",  # nominating | voting | results
     "nominations": {},  # categoryId -> { nomineeLower -> count }
-    "nominators_lower": [],  # list of lowercase submitter names
+    "nominators_lower": [],  # stores anonymized subject hashes
     "finalists": {},  # categoryId -> [ nomineeLower, ... ]
     "votes": {},  # categoryId -> { nomineeLower -> count }
-    "voted_lower": [],  # list of lowercase voter names
+    "voted_lower": [],  # stores anonymized subject hashes
 }
 
 
@@ -57,13 +58,103 @@ def normalize_name_lower(name: str) -> str:
     return normalize_name(name).lower()
 
 
-def compute_top3(nominee_counts: Dict[str, int]) -> list[str]:
+def utcnow() -> datetime:
+    return datetime.utcnow()
+
+
+def compute_subject_hash(roll: str) -> str:
+    normalized = normalize_roll(roll)
+    if not normalized:
+        raise HTTPException(status_code=400, detail="Invalid roll number")
+    return hmac.new(
+        settings.session_secret.encode("utf-8"),
+        normalized.encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+
+
+def sign_session(payload: dict[str, Any]) -> str:
+    raw = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    body = base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
+    sig = hmac.new(settings.session_secret.encode("utf-8"), body.encode("utf-8"), hashlib.sha256).hexdigest()
+    return f"{body}.{sig}"
+
+
+def unsign_session(token: str) -> dict[str, Any] | None:
+    try:
+        body, sig = token.rsplit(".", 1)
+    except ValueError:
+        return None
+    expected = hmac.new(settings.session_secret.encode("utf-8"), body.encode("utf-8"), hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(sig, expected):
+        return None
+    padded = body + "=" * (-len(body) % 4)
+    try:
+        payload = json.loads(base64.urlsafe_b64decode(padded.encode("ascii")))
+    except Exception:
+        return None
+    if int(payload.get("exp", 0)) < int(datetime.now(timezone.utc).timestamp()):
+        return None
+    return payload
+
+
+def issue_session(response: Response, *, role: str, roll: str = "") -> None:
+    expires_at = datetime.now(timezone.utc) + timedelta(hours=settings.session_ttl_hours)
+    payload: dict[str, Any] = {
+        "role": role,
+        "exp": int(expires_at.timestamp()),
+    }
+    if role == "student":
+        normalized_roll = normalize_roll(roll)
+        payload["roll"] = normalized_roll
+        payload["subject"] = compute_subject_hash(normalized_roll)
+    token = sign_session(payload)
+    response.set_cookie(
+        key=settings.session_cookie_name,
+        value=token,
+        httponly=True,
+        secure=settings.session_cookie_secure,
+        samesite="strict",
+        max_age=settings.session_ttl_hours * 3600,
+        path="/",
+    )
+
+
+def clear_session(response: Response) -> None:
+    response.delete_cookie(settings.session_cookie_name, path="/")
+
+
+def get_session(request: Request) -> dict[str, Any]:
+    token = request.cookies.get(settings.session_cookie_name)
+    if not token:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    payload = unsign_session(token)
+    if not payload:
+        raise HTTPException(status_code=401, detail="Session expired or invalid")
+    return payload
+
+
+def require_student_session(request: Request) -> dict[str, Any]:
+    payload = get_session(request)
+    if payload.get("role") != "student":
+        raise HTTPException(status_code=403, detail="Student session required")
+    return payload
+
+
+def require_admin_session(request: Request) -> dict[str, Any]:
+    payload = get_session(request)
+    if payload.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin session required")
+    return payload
+
+
+def compute_top5(nominee_counts: Dict[str, int]) -> list[str]:
     # Match the frontend behavior (count-desc), with deterministic tie-break.
     sorted_items = sorted(
         nominee_counts.items(),
         key=lambda kv: (-int(kv[1]), kv[0]),
     )
-    return [k for k, _ in sorted_items[:3]]
+    return [k for k, _ in sorted_items[:5]]
 
 def load_student_emails() -> Dict[str, str]:
     emails = {}
@@ -124,6 +215,7 @@ def require_admin(admin_pass: str) -> None:
 # ─── OTP helpers ─────────────────────────────────────
 otp_collection = mongo_client[settings.mongodb_db]["otp_store"]
 drafts_collection = mongo_client[settings.mongodb_db]["nomination_drafts"]
+subjects_collection = mongo_client[settings.mongodb_db]["subjects"]
 
 
 def generate_otp() -> str:
@@ -220,8 +312,8 @@ async def send_otp(req: SendOtpRequest) -> dict[str, Any]:
 
 
 @app.post("/api/otp/verify")
-async def verify_otp(req: VerifyOtpRequest) -> dict[str, Any]:
-    roll = normalize_name(req.roll)
+async def verify_otp(req: VerifyOtpRequest, response: Response) -> dict[str, Any]:
+    roll = normalize_roll(req.roll)
     otp = normalize_name(req.otp)
     if not roll or not otp:
         raise HTTPException(status_code=400, detail="Roll and OTP are required")
@@ -230,33 +322,71 @@ async def verify_otp(req: VerifyOtpRequest) -> dict[str, Any]:
     if not record:
         raise HTTPException(status_code=400, detail="No OTP found. Please request one first.")
 
-    # Check expiry (5 minutes)
     created = record.get("created_at")
     if created and (datetime.utcnow() - created).total_seconds() > 300:
         await otp_collection.delete_one({"_id": roll})
         raise HTTPException(status_code=410, detail="OTP has expired. Please request a new one.")
 
-    # Check attempts (max 5)
     attempts = record.get("attempts", 0)
     if attempts >= 5:
         await otp_collection.delete_one({"_id": roll})
         raise HTTPException(status_code=429, detail="Too many attempts. Please request a new OTP.")
 
-    # Increment attempts
     await otp_collection.update_one({"_id": roll}, {"$inc": {"attempts": 1}})
 
     if record.get("otp") != otp:
         raise HTTPException(status_code=401, detail=f"Incorrect OTP. {4 - attempts} attempts remaining.")
 
-    # OTP verified — delete it so it can't be reused
     await otp_collection.delete_one({"_id": roll})
-
-    return {"ok": True, "email": record.get("email", "")}
+    subject_hash = compute_subject_hash(roll)
+    await subjects_collection.update_one(
+        {"_id": subject_hash},
+        {
+            "$setOnInsert": {
+                "nomination_submitted": False,
+                "vote_submitted": False,
+                "created_at": utcnow(),
+            },
+            "$set": {"updated_at": utcnow()},
+        },
+        upsert=True,
+    )
+    issue_session(response, role="student", roll=roll)
+    return {"ok": True, "roll": roll}
 
 
 @app.get("/api/health")
 async def health() -> dict[str, str]:
     return {"ok": "true"}
+
+
+@app.post("/api/auth/logout")
+async def logout(response: Response) -> dict[str, bool]:
+    clear_session(response)
+    return {"ok": True}
+
+
+@app.get("/api/me/status")
+async def me_status(request: Request) -> dict[str, Any]:
+    payload = get_session(request)
+    state = await get_state()
+    if payload.get("role") == "admin":
+        return {
+            "authenticated": True,
+            "admin": True,
+            "phase": state.get("phase", "nominating"),
+        }
+
+    subject_hash = payload["subject"]
+    doc = await subjects_collection.find_one({"_id": subject_hash}) or {}
+    return {
+        "authenticated": True,
+        "admin": False,
+        "roll": payload.get("roll", ""),
+        "phase": state.get("phase", "nominating"),
+        "nomination_submitted": bool(doc.get("nomination_submitted")),
+        "vote_submitted": bool(doc.get("vote_submitted")),
+    }
 
 
 @app.get("/api/public/state")
@@ -272,27 +402,16 @@ async def public_state() -> dict[str, Any]:
     }
 
 
-@app.get("/api/nominations/nominators/check")
-async def check_nominator(name: str = Query(..., min_length=1)) -> dict[str, bool]:
-    name_lower = normalize_name_lower(name)
-    state = await get_state()
-    return {"exists": name_lower in set(state.get("nominators_lower", []))}
-
-
 @app.post("/api/nominations/submit")
-async def submit_nominations(req: SubmitNominationsRequest) -> dict[str, Any]:
+async def submit_nominations(req: SubmitNominationsRequest, request: Request) -> dict[str, Any]:
     state = await get_state()
     if state.get("phase") != "nominating":
         raise HTTPException(status_code=409, detail="Nominations are closed")
 
-    # Support both new (user_id) and legacy (name) fields
-    user_id = normalize_name(req.user_id or req.name)
-    username = normalize_name(req.username) if req.username else ""
-    if not user_id:
-        raise HTTPException(status_code=400, detail="user_id is required")
-    user_id_lower = normalize_name_lower(user_id)
-
-    if user_id_lower in set(state.get("nominators_lower", [])):
+    session = require_student_session(request)
+    subject_hash = session["subject"]
+    subject_doc = await subjects_collection.find_one({"_id": subject_hash}) or {}
+    if subject_doc.get("nomination_submitted"):
         raise HTTPException(status_code=409, detail="You have already submitted nominations")
 
     picks = req.picks or {}
@@ -311,28 +430,19 @@ async def submit_nominations(req: SubmitNominationsRequest) -> dict[str, Any]:
     if not inc:
         raise HTTPException(status_code=400, detail="No valid nominations found")
 
-    await collection.update_one(
-        {"_id": DEFAULT_STATE["_id"]},
+    result = await collection.update_one(
+        {"_id": DEFAULT_STATE["_id"], "phase": "nominating", "nominators_lower": {"$ne": subject_hash}},
         {
             "$inc": inc,
-            "$addToSet": {"nominators_lower": user_id_lower},
+            "$addToSet": {"nominators_lower": subject_hash},
         },
         upsert=True,
     )
-
-    # Store the nominator details + their picks so we can reverse if needed
-    normalized_picks = {}
-    for cid, nominee in picks.items():
-        if cid not in ALLOWED_CATEGORY_IDS:
-            continue
-        nominee_norm = normalize_roll(nominee)
-        if nominee_norm:
-            normalized_picks[cid] = nominee_norm
-
-    nominators_col = mongo_client[settings.mongodb_db]["nominators"]
-    await nominators_col.update_one(
-        {"_id": user_id_lower},
-        {"$set": {"user_id": user_id, "username": username, "email": req.email, "picks": normalized_picks}},
+    if result.modified_count == 0:
+        raise HTTPException(status_code=409, detail="You have already submitted nominations")
+    await subjects_collection.update_one(
+        {"_id": subject_hash},
+        {"$set": {"nomination_submitted": True, "updated_at": utcnow()}},
         upsert=True,
     )
 
@@ -342,24 +452,17 @@ async def submit_nominations(req: SubmitNominationsRequest) -> dict[str, Any]:
 # ─── Draft-based nomination flow ────────────────────
 
 @app.post("/api/nominations/draft/save")
-async def save_draft(req: SaveDraftRequest) -> dict[str, Any]:
-    """Save (upsert) partial nomination picks as a draft.
-    Rejects if the user has already finalized."""
+async def save_draft(req: SaveDraftRequest, request: Request) -> dict[str, Any]:
     state = await get_state()
     if state.get("phase") != "nominating":
         raise HTTPException(status_code=409, detail="Nominations are closed")
 
-    user_id = normalize_name(req.user_id)
-    if not user_id:
-        raise HTTPException(status_code=400, detail="user_id is required")
-    user_id_lower = normalize_name_lower(user_id)
-
-    # Check if already finalized
-    existing = await drafts_collection.find_one({"_id": user_id_lower})
-    if existing and existing.get("is_final"):
+    session = require_student_session(request)
+    subject_hash = session["subject"]
+    subject_doc = await subjects_collection.find_one({"_id": subject_hash}) or {}
+    if subject_doc.get("nomination_submitted"):
         raise HTTPException(status_code=409, detail="You have already submitted final nominations")
 
-    # Normalize picks
     normalized_picks: Dict[str, str] = {}
     for cid, nominee in (req.picks or {}).items():
         if cid not in ALLOWED_CATEGORY_IDS:
@@ -369,15 +472,11 @@ async def save_draft(req: SaveDraftRequest) -> dict[str, Any]:
             normalized_picks[cid] = nominee_norm
 
     await drafts_collection.update_one(
-        {"_id": user_id_lower},
+        {"_id": subject_hash},
         {
             "$set": {
-                "user_id": user_id,
-                "username": normalize_name(req.username) if req.username else "",
-                "email": req.email,
                 "picks": normalized_picks,
-                "is_final": False,
-                "updated_at": datetime.utcnow(),
+                "updated_at": utcnow(),
             }
         },
         upsert=True,
@@ -386,56 +485,45 @@ async def save_draft(req: SaveDraftRequest) -> dict[str, Any]:
     return {"ok": True}
 
 
-@app.post("/api/nominations/draft/get")
-async def get_draft(req: GetDraftRequest) -> dict[str, Any]:
-    """Return the user's current draft (or empty if none exists)."""
-    user_id = normalize_name(req.user_id)
-    if not user_id:
-        raise HTTPException(status_code=400, detail="user_id is required")
-    user_id_lower = normalize_name_lower(user_id)
+@app.get("/api/nominations/draft")
+async def get_draft(request: Request) -> dict[str, Any]:
+    session = require_student_session(request)
+    subject_hash = session["subject"]
+    subject_doc = await subjects_collection.find_one({"_id": subject_hash}) or {}
+    if subject_doc.get("nomination_submitted"):
+        return {"ok": True, "picks": {}, "is_final": True}
 
-    doc = await drafts_collection.find_one({"_id": user_id_lower})
+    doc = await drafts_collection.find_one({"_id": subject_hash})
     if not doc:
         return {"ok": True, "picks": {}, "is_final": False}
 
     return {
         "ok": True,
         "picks": doc.get("picks", {}),
-        "is_final": doc.get("is_final", False),
+        "is_final": False,
     }
 
 
 @app.post("/api/nominations/draft/finalize")
-async def finalize_draft(req: GetDraftRequest) -> dict[str, Any]:
-    """Lock the draft and apply the nominations to the global tally."""
+async def finalize_draft(request: Request) -> dict[str, Any]:
     state = await get_state()
     if state.get("phase") != "nominating":
         raise HTTPException(status_code=409, detail="Nominations are closed")
 
-    user_id = normalize_name(req.user_id)
-    if not user_id:
-        raise HTTPException(status_code=400, detail="user_id is required")
-    user_id_lower = normalize_name_lower(user_id)
+    session = require_student_session(request)
+    subject_hash = session["subject"]
+    subject_doc = await subjects_collection.find_one({"_id": subject_hash}) or {}
+    if subject_doc.get("nomination_submitted"):
+        raise HTTPException(status_code=409, detail="Nominations already submitted")
 
-    doc = await drafts_collection.find_one({"_id": user_id_lower})
+    doc = await drafts_collection.find_one({"_id": subject_hash})
     if not doc:
         raise HTTPException(status_code=404, detail="No draft found. Please save your nominations first.")
-    if doc.get("is_final"):
-        raise HTTPException(status_code=409, detail="Nominations already submitted")
 
     picks = doc.get("picks", {})
     if not picks:
         raise HTTPException(status_code=400, detail="No nominations in draft")
 
-    # Check if already in nominators (edge case / double-submit guard)
-    if user_id_lower in set(state.get("nominators_lower", [])):
-        # Mark draft as final anyway
-        await drafts_collection.update_one(
-            {"_id": user_id_lower}, {"$set": {"is_final": True}}
-        )
-        raise HTTPException(status_code=409, detail="You have already submitted nominations")
-
-    # Build increment operations for the global tally
     inc: Dict[str, int] = {}
     for cid, nominee_norm in picks.items():
         if cid in ALLOWED_CATEGORY_IDS and nominee_norm:
@@ -444,46 +532,36 @@ async def finalize_draft(req: GetDraftRequest) -> dict[str, Any]:
     if not inc:
         raise HTTPException(status_code=400, detail="No valid nominations found in draft")
 
-    # Apply to global state
-    await collection.update_one(
-        {"_id": DEFAULT_STATE["_id"]},
+    result = await collection.update_one(
+        {"_id": DEFAULT_STATE["_id"], "phase": "nominating", "nominators_lower": {"$ne": subject_hash}},
         {
             "$inc": inc,
-            "$addToSet": {"nominators_lower": user_id_lower},
+            "$addToSet": {"nominators_lower": subject_hash},
         },
         upsert=True,
     )
-
-    # Store in nominators collection (for reverse on admin remove)
-    nominators_col = mongo_client[settings.mongodb_db]["nominators"]
-    await nominators_col.update_one(
-        {"_id": user_id_lower},
-        {"$set": {
-            "user_id": doc.get("user_id", user_id),
-            "username": doc.get("username", ""),
-            "email": doc.get("email", ""),
-            "picks": picks,
-        }},
+    if result.modified_count == 0:
+        raise HTTPException(status_code=409, detail="You have already submitted nominations")
+    await subjects_collection.update_one(
+        {"_id": subject_hash},
+        {"$set": {"nomination_submitted": True, "updated_at": utcnow()}},
         upsert=True,
     )
-
-    # Mark draft as final
-    await drafts_collection.update_one(
-        {"_id": user_id_lower}, {"$set": {"is_final": True}}
-    )
+    await drafts_collection.delete_one({"_id": subject_hash})
 
     return {"ok": True}
 
 
 @app.post("/api/admin/login")
-async def admin_login(req: AdminPassRequest) -> dict[str, bool]:
+async def admin_login(req: AdminPassRequest, response: Response) -> dict[str, bool]:
     require_admin(req.adminPass)
+    issue_session(response, role="admin")
     return {"ok": True}
 
 
-@app.post("/api/admin/state")
-async def admin_state(req: AdminPassRequest) -> dict[str, Any]:
-    require_admin(req.adminPass)
+@app.get("/api/admin/state")
+async def admin_state(request: Request) -> dict[str, Any]:
+    require_admin_session(request)
     state = await get_state()
     phase = state.get("phase", "nominating")
     return {
@@ -491,82 +569,14 @@ async def admin_state(req: AdminPassRequest) -> dict[str, Any]:
         "nominations": state.get("nominations", {}) if phase == "nominating" else state.get("nominations", {}),
         "finalists": state.get("finalists", {}) if phase in ("voting", "results") else {},
         "votes": state.get("votes", {}) if phase in ("voting", "results") else {},
-        "nominators_lower": state.get("nominators_lower", []),
+        "nomination_count": len(state.get("nominators_lower", [])),
+        "vote_count": len(state.get("voted_lower", [])),
     }
-
-
-@app.post("/api/admin/nominators")
-async def admin_nominators(req: AdminPassRequest) -> dict[str, Any]:
-    require_admin(req.adminPass)
-    nominators_col = mongo_client[settings.mongodb_db]["nominators"]
-    cursor = nominators_col.find({})
-    noms = []
-    async for nom in cursor:
-        noms.append({
-            "roll": nom["_id"],
-            "user_id": nom.get("user_id"),
-            "username": nom.get("username"),
-            "email": nom.get("email"),
-            "picks": nom.get("picks", {})
-        })
-    return {"ok": True, "nominators": noms}
-
-
-@app.post("/api/admin/remove-nominator")
-async def admin_remove_nominator(req: RemoveNominatorRequest) -> dict[str, Any]:
-    """Remove a nominator by roll number so they can nominate again.
-    Reverses their nomination counts if their picks were stored."""
-    require_admin(req.adminPass)
-    state = await get_state()
-    if state.get("phase") != "nominating":
-        raise HTTPException(status_code=409, detail="Can only remove nominators during the nominating phase")
-
-    roll = normalize_name(req.roll)
-    roll_lower = normalize_name_lower(req.roll)
-    if not roll:
-        raise HTTPException(status_code=400, detail="Roll number is required")
-
-    # Check if the roll exists in nominators_lower
-    if roll_lower not in set(state.get("nominators_lower", [])):
-        raise HTTPException(status_code=404, detail=f"Roll '{roll}' has not nominated")
-
-    # Try to find their stored picks to reverse the counts
-    nominators_col = mongo_client[settings.mongodb_db]["nominators"]
-    record = await nominators_col.find_one({"_id": roll_lower})
-    picks = (record or {}).get("picks", {}) if record else {}
-
-    # Build decrement operations to reverse nomination counts
-    dec: Dict[str, int] = {}
-    for cid, nominee_norm in picks.items():
-        if cid in ALLOWED_CATEGORY_IDS and nominee_norm:
-            dec[f"nominations.{cid}.{nominee_norm}"] = dec.get(f"nominations.{cid}.{nominee_norm}", 0) - 1
-
-    update_ops: Dict[str, Any] = {
-        "$pull": {"nominators_lower": roll_lower},
-    }
-    if dec:
-        update_ops["$inc"] = dec
-
-    await collection.update_one(
-        {"_id": DEFAULT_STATE["_id"]},
-        update_ops,
-    )
-
-    # Remove the nominator record
-    await nominators_col.delete_one({"_id": roll_lower})
-
-    # Reset the draft so the user can re-nominate
-    await drafts_collection.update_one(
-        {"_id": roll_lower},
-        {"$set": {"is_final": False}},
-    )
-
-    return {"ok": True, "reversed_picks": bool(dec)}
 
 
 @app.post("/api/admin/finalize")
-async def admin_finalize(req: AdminPassRequest) -> dict[str, Any]:
-    require_admin(req.adminPass)
+async def admin_finalize(request: Request) -> dict[str, Any]:
+    require_admin_session(request)
     state = await get_state()
     if state.get("phase") != "nominating":
         raise HTTPException(status_code=409, detail="Cannot finalize unless phase is nominating")
@@ -575,7 +585,7 @@ async def admin_finalize(req: AdminPassRequest) -> dict[str, Any]:
     finalists: Dict[str, Any] = {}
     for cid in sorted(ALLOWED_CATEGORY_IDS, key=lambda s: int(s)):
         counts: Dict[str, int] = nominations.get(cid, {}) or {}
-        finalists[cid] = compute_top3(counts)
+        finalists[cid] = compute_top5(counts)
 
     await collection.update_one(
         {"_id": DEFAULT_STATE["_id"]},
@@ -595,8 +605,8 @@ async def admin_finalize(req: AdminPassRequest) -> dict[str, Any]:
 
 
 @app.post("/api/admin/lock-voting")
-async def admin_lock_voting(req: AdminPassRequest) -> dict[str, Any]:
-    require_admin(req.adminPass)
+async def admin_lock_voting(request: Request) -> dict[str, Any]:
+    require_admin_session(request)
     state = await get_state()
     if state.get("phase") != "voting":
         raise HTTPException(status_code=409, detail="Voting is not currently open")
@@ -615,8 +625,8 @@ async def admin_lock_voting(req: AdminPassRequest) -> dict[str, Any]:
 
 
 @app.post("/api/admin/reset")
-async def admin_reset(req: AdminPassRequest) -> dict[str, Any]:
-    require_admin(req.adminPass)
+async def admin_reset(request: Request) -> dict[str, Any]:
+    require_admin_session(request)
     
     # Reset main state to defaults
     await collection.update_one(
@@ -635,11 +645,9 @@ async def admin_reset(req: AdminPassRequest) -> dict[str, Any]:
     # Clear all other collections
     await drafts_collection.delete_many({})
     
-    nominators_col = mongo_client[settings.mongodb_db]["nominators"]
-    await nominators_col.delete_many({})
-    
-    voters_col = mongo_client[settings.mongodb_db]["voters"]
-    await voters_col.delete_many({})
+    await subjects_collection.delete_many({})
+    await mongo_client[settings.mongodb_db]["nominators"].delete_many({})
+    await mongo_client[settings.mongodb_db]["voters"].delete_many({})
     
     # Optional: Clear OTPs
     await otp_collection.delete_many({})
@@ -647,27 +655,16 @@ async def admin_reset(req: AdminPassRequest) -> dict[str, Any]:
     return {"ok": True, "message": "System reset successfully"}
 
 
-@app.get("/api/votes/voted/check")
-async def check_voted(name: str = Query(..., min_length=1)) -> dict[str, bool]:
-    name_lower = normalize_name_lower(name)
-    state = await get_state()
-    return {"exists": name_lower in set(state.get("voted_lower", []))}
-
-
 @app.post("/api/votes/submit")
-async def submit_votes(req: SubmitVotesRequest) -> dict[str, Any]:
+async def submit_votes(req: SubmitVotesRequest, request: Request) -> dict[str, Any]:
     state = await get_state()
     if state.get("phase") != "voting":
         raise HTTPException(status_code=409, detail="Voting is not open")
 
-    # Support both new (user_id) and legacy (name) fields
-    user_id = normalize_name(req.user_id or req.name)
-    username = normalize_name(req.username) if req.username else ""
-    if not user_id:
-        raise HTTPException(status_code=400, detail="user_id is required")
-    user_id_lower = normalize_name_lower(user_id)
-
-    if user_id_lower in set(state.get("voted_lower", [])):
+    session = require_student_session(request)
+    subject_hash = session["subject"]
+    subject_doc = await subjects_collection.find_one({"_id": subject_hash}) or {}
+    if subject_doc.get("vote_submitted"):
         raise HTTPException(status_code=409, detail="You have already voted!")
 
     votes = req.votes or {}
@@ -686,27 +683,25 @@ async def submit_votes(req: SubmitVotesRequest) -> dict[str, Any]:
         inc[f"votes.{cid}.{nominee_norm}"] = inc.get(f"votes.{cid}.{nominee_norm}", 0) + 1
 
     if inc:
-        await collection.update_one(
-            {"_id": DEFAULT_STATE["_id"]},
+        result = await collection.update_one(
+            {"_id": DEFAULT_STATE["_id"], "phase": "voting", "voted_lower": {"$ne": subject_hash}},
             {
                 "$inc": inc,
-                "$addToSet": {"voted_lower": user_id_lower},
+                "$addToSet": {"voted_lower": subject_hash},
             },
             upsert=True,
         )
     else:
-        # No valid votes provided (e.g. user skipped everything). Still lock them in.
-        await collection.update_one(
-            {"_id": DEFAULT_STATE["_id"]},
-            {"$addToSet": {"voted_lower": user_id_lower}},
+        result = await collection.update_one(
+            {"_id": DEFAULT_STATE["_id"], "phase": "voting", "voted_lower": {"$ne": subject_hash}},
+            {"$addToSet": {"voted_lower": subject_hash}},
             upsert=True,
         )
-
-    # Store the voter details in a separate collection for reference
-    voters_col = mongo_client[settings.mongodb_db]["voters"]
-    await voters_col.update_one(
-        {"_id": user_id_lower},
-        {"$set": {"user_id": user_id, "username": username, "email": req.email}},
+    if result.modified_count == 0:
+        raise HTTPException(status_code=409, detail="You have already voted!")
+    await subjects_collection.update_one(
+        {"_id": subject_hash},
+        {"$set": {"vote_submitted": True, "updated_at": utcnow()}},
         upsert=True,
     )
 

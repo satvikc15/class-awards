@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import RosterSearchField from "./src/RosterSearchField.jsx";
+import { apiGet, apiPost } from "./src/api.js";
 
 const CLASS_PHOTOS = [
   "/cp1.jpeg", "/cp2.jpeg", "/cp3.jpeg", "/cp4.jpeg", "/cp5.jpeg", "/cp6.jpeg", "/cp7.jpeg", "/cp8.jpg", "/cp9.jpg"
@@ -58,25 +59,6 @@ const CATEGORIES = [
   { id: "49", emoji: "🤝", label: "The Networking Ninja (Knows everyone in the building)", gender: null },
 ];
 
-
-const getBaseUrl = () => import.meta.env.VITE_API_URL || "";
-
-const apiGet = async (path) => {
-  const res = await fetch(getBaseUrl() + path, { method: "GET", headers: { "Content-Type": "application/json" } });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
-};
-
-const apiPost = async (path, body) => {
-  const res = await fetch(getBaseUrl() + path, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
-};
-
 const toTitle = (str) =>
   str.replace(/\b\w/g, (c) => c.toUpperCase());
 
@@ -115,13 +97,11 @@ export default function NominationSite({ me, roster, rosterMap }) {
 
   /* Auto-load draft on mount */
   useEffect(() => {
-    const roll = (me?.roll || "").trim();
-    if (!roll) return;
+    if (!me?.roll) return;
     (async () => {
       try {
-        const d = await apiPost("/api/nominations/draft/get", { user_id: roll });
+        const d = await apiGet("/api/nominations/draft");
         if (d.is_final) {
-          setPicks(d.picks || {});
           setScreen("submitted");
         } else if (d.picks && Object.keys(d.picks).length > 0) {
           setPicks(d.picks);
@@ -132,24 +112,13 @@ export default function NominationSite({ me, roster, rosterMap }) {
   }, [me?.roll]);
 
   /* Save current picks as draft (fire-and-forget) */
-  const saveDraft = async (currentPicks) => {
-    const roll = (me?.roll || name || "").trim();
-    if (!roll) return;
+const saveDraft = async (currentPicks) => {
+    if (!me?.roll) return;
     setSaving(true);
     try {
-      await apiPost("/api/nominations/draft/save", {
-        user_id: roll,
-        username: rosterMap?.get(String(roll)) || "",
-        email: me?.email || "",
-        picks: currentPicks,
-      });
+      await apiPost("/api/nominations/draft/save", { picks: currentPicks });
     } catch (e) {
-      // Draft already finalized — redirect to read-only view
-      if (e.message && e.message.includes("409")) {
-        try {
-          const d = await apiPost("/api/nominations/draft/get", { user_id: roll });
-          if (d.picks) setPicks(d.picks);
-        } catch { /* use current picks */ }
+      if ((e.message || "").includes("already submitted")) {
         setScreen("submitted");
       }
     }
@@ -171,14 +140,17 @@ export default function NominationSite({ me, roster, rosterMap }) {
   };
 
   const handleStart = async () => {
-    const n = (me?.roll || name || "").trim();
-    if (!n) { setNameErr("Missing roll number"); return; }
+    if (!me?.roll) { setNameErr("Missing roll number"); return; }
     setBusy(true);
     try {
-      // Fetch existing draft
-      const d = await apiPost("/api/nominations/draft/get", { user_id: n });
+      const status = await apiGet("/api/me/status");
+      if (status.nomination_submitted) {
+        setScreen("submitted");
+        setBusy(false);
+        return;
+      }
+      const d = await apiGet("/api/nominations/draft");
       if (d.is_final) {
-        setPicks(d.picks || {});
         setScreen("submitted");
         setBusy(false);
         return;
@@ -187,36 +159,19 @@ export default function NominationSite({ me, roster, rosterMap }) {
         setPicks(d.picks);
       }
     } catch {
-      // Draft fetch failed — check old nominator status as fallback
-      try {
-        const r = await apiGet(`/api/nominations/nominators/check?name=${encodeURIComponent(n)}`);
-        if (r.exists) {
-          setNameErr("You have already submitted! Contact oucefest@gmail.com if there is any discrepancy.");
-          setBusy(false);
-          return;
-        }
-      } catch {
-        setNameErr("Could not check submission status. Please try again.");
-        setBusy(false);
-        return;
-      }
+      setNameErr("Could not check submission status. Please try again.");
+      setBusy(false);
+      return;
     }
     setBusy(false);
     setScreen("nominate");
   };
 
-  const handleSubmit = async () => {
+const handleSubmit = async () => {
     setBusy(true);
     try {
-      // Save final draft then finalize
-      const roll = (me?.roll || name || "").trim();
-      await apiPost("/api/nominations/draft/save", {
-        user_id: roll,
-        username: rosterMap?.get(String(roll)) || "",
-        email: me?.email || "",
-        picks,
-      });
-      await apiPost("/api/nominations/draft/finalize", { user_id: roll });
+      await apiPost("/api/nominations/draft/save", { picks });
+      await apiPost("/api/nominations/draft/finalize");
       setScreen("done");
     } catch {
       alert("Submission failed — please try again.");
@@ -432,7 +387,7 @@ export default function NominationSite({ me, roster, rosterMap }) {
           </div>
 
           <div className="scroll-list">
-            {CATEGORIES.map((cat) => (
+            {count > 0 ? CATEGORIES.map((cat) => (
               <div key={cat.id} className="row-item">
                 <span style={{ fontSize: 18 }}>{cat.emoji}</span>
                 <span className="row-label">{cat.label}</span>
@@ -440,7 +395,11 @@ export default function NominationSite({ me, roster, rosterMap }) {
                   ? <span className="row-val">{rosterMap?.get(String(picks[cat.id])) ? `${rosterMap.get(String(picks[cat.id]))} (${picks[cat.id]})` : picks[cat.id]}</span>
                   : <span className="row-skip">skipped</span>}
               </div>
-            ))}
+            )) : (
+              <p className="hint" style={{ textAlign: "left" }}>
+                Submitted answers are no longer retrievable from the server. Drafts are deleted after final submission to keep nominations anonymous.
+              </p>
+            )}
           </div>
 
           <button

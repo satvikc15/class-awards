@@ -4,6 +4,7 @@ import NominationSite from "./NominationSite.jsx";
 import VotingSite from "./VotingSite.jsx";
 import { rosterToMap } from "./rosterStore.js";
 import { loadRoster } from "./roster.js";
+import { apiGet, apiPost } from "./api.js";
 
 import { AnimatePresence, motion } from "framer-motion";
 
@@ -104,6 +105,7 @@ export default function App() {
 
   const [tab, setTab] = useState(initial);
   const [me, setMe] = useState(null);
+  const [booting, setBooting] = useState(true);
   const [roster] = useState(() => loadRoster());
   const rosterMap = useMemo(() => rosterToMap(roster), [roster]);
 
@@ -111,7 +113,38 @@ export default function App() {
     window.location.hash = tab === "vote" ? "#vote" : "#nominate";
   }, [tab]);
 
-  const handleLogout = () => setMe(null);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const status = await apiGet("/api/me/status");
+        if (!cancelled && status?.authenticated) {
+          setMe({
+            roll: status.roll || (status.admin ? "1985" : ""),
+            admin: !!status.admin,
+          });
+        }
+      } catch {
+        if (!cancelled) setMe(null);
+      } finally {
+        if (!cancelled) setBooting(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const handleLogout = async () => {
+    try {
+      await apiPost("/api/auth/logout");
+    } catch {}
+    setMe(null);
+  };
+
+  if (booting) {
+    return <div style={{ position: "fixed", inset: 0, background: "#030712" }} />;
+  }
 
   return (
     <AnimatePresence mode="wait">

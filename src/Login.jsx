@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { apiPost } from "./api.js";
 
 const PREFIX = "1005227290";
 const ROLL_RE = /^1005227290\d{2}$/;
@@ -23,23 +24,6 @@ export default function Login({ onLogin }) {
   const [countdown, setCountdown] = useState(0);
 
   const roll = useMemo(() => `${PREFIX}${xx}`, [xx]);
-
-  const getBaseUrl = () => import.meta.env.VITE_API_URL || "";
-
-  const apiPost = async (path, body) => {
-    const res = await fetch(getBaseUrl() + path, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) {
-      const text = await res.text();
-      let msg = text;
-      try { msg = JSON.parse(text).detail || text; } catch {}
-      throw new Error(msg);
-    }
-    return res.json();
-  };
 
   const startCountdown = () => {
     setCountdown(60);
@@ -117,7 +101,7 @@ export default function Login({ onLogin }) {
     setBusy(true);
     try {
       await apiPost("/api/admin/login", { adminPass });
-      onLogin({ roll: ADMIN_ROLL, admin: true, adminPass });
+      onLogin({ roll: ADMIN_ROLL, admin: true });
     } catch {
       setErr("Wrong password.");
     }
